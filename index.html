@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/assets/images/harishchandra-logo-mini.svg"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hospital Management System</title>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    />
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- plugins:css -->
+    <link
+      rel="stylesheet"
+      href="assets/vendors/simple-line-icons/css/simple-line-icons.css"
+    />
+    <link
+      rel="stylesheet"
+      href="assets/vendors/flag-icon-css/css/flag-icons.min.css"
+    />
+    <link rel="stylesheet" href="assets/vendors/css/vendor.bundle.base.css" />
+    <!-- endinject -->
+    <!-- Plugin css for this page -->
+    <link
+      rel="stylesheet"
+      href="assets/vendors/font-awesome/css/font-awesome.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="assets/vendors/jvectormap/jquery-jvectormap.css"
+    />
+    <link
+      rel="stylesheet"
+      href="assets/vendors/daterangepicker/daterangepicker.css"
+    />
+    <link rel="stylesheet" href="assets/vendors/chartist/chartist.min.css" />
+    <!-- End plugin css for this page -->
+    <!-- inject:css -->
+    <!-- endinject -->
+    <!-- Layout styles -->
+    <link rel="stylesheet" href="assets/css/vertical-light-layout/style.css" />
+    <!-- End layout styles -->
+    <link rel="shortcut icon" href="assets/images/logo-mini.png" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <!-- plugins:js -->
+    <script src="assets/vendors/js/vendor.bundle.base.js"></script>
+    <!-- endinject -->
+    <!-- Plugin js for this page -->
+    <script src="assets/vendors/chart.js/chart.umd.js"></script>
+    <script src="assets/vendors/jvectormap/jquery-jvectormap.min.js"></script>
+    <script src="assets/vendors/jvectormap/jquery-jvectormap-world-mill-en.js"></script>
+    <script src="assets/vendors/bootstrap-datepicker/bootstrap-datepicker.min.js"></script>
+    <script src="assets/vendors/moment/moment.min.js"></script>
+    <script src="assets/vendors/daterangepicker/daterangepicker.js"></script>
+    <script src="assets/vendors/chartist/chartist.min.js"></script>
+    <script src="assets/vendors/progressbar.js/progressbar.min.js"></script>
+    <script src="assets/js/jquery.cookie.js"></script>
+    <!-- End plugin js for this page -->
+    <!-- inject:js -->
+    <script src="assets/js/off-canvas.js"></script>
+    <script src="assets/js/hoverable-collapse.js"></script>
+    <script src="assets/js/misc.js"></script>
+    <script src="assets/js/settings.js"></script>
+    <script th:src="@{assets/}" src="assets/js/todolist.js"></script>
+    <!-- endinject -->
+    <!-- 
+    <script src="assets/js/custom.js"></script>Custom js for this page -->
+    <script src="assets/js/dashboard.js"></script>
+    <!-- End custom js for this page -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        // Sidebar minimize
+        // Attach to existing elements (if any)
+        document
+          .querySelectorAll('[data-bs-toggle="minimize"]')
+          .forEach(function (el) {
+            el.addEventListener("click", function () {
+              document.body.classList.toggle("sidebar-icon-only");
+            });
+          });
+
+        // Also use event delegation so buttons added later (e.g. by React) still work
+        document.addEventListener("click", function (e) {
+          var trigger = e.target.closest
+            ? e.target.closest('[data-bs-toggle="minimize"]')
+            : null;
+          if (trigger) {
+            document.body.classList.toggle("sidebar-icon-only");
+          }
+        });
+
+        // Sidebar offcanvas (for mobile)
+        document
+          .querySelectorAll('[data-bs-toggle="offcanvas"]')
+          .forEach(function (el) {
+            el.addEventListener("click", function () {
+              document
+                .querySelector(".sidebar-offcanvas")
+                .classList.toggle("active");
+            });
+          });
+      });
+    </script>
+
+    <!-- Sidebar nested-hover fix: prevents click-toggle in collapsed mode and enables hover-open for nested items -->
+    <script>
+      (function () {
+        // Helper to check if sidebar is in collapsed icon-only mode.
+        function isCollapsed() {
+          return (
+            document.body.classList.contains("sidebar-icon-only") ||
+            document.documentElement.classList.contains("sidebar-icon-only") ||
+            (document.querySelector(".container-scroller") &&
+              document
+                .querySelector(".container-scroller")
+                .classList.contains("sidebar-icon-only"))
+          );
+        }
+
+        function showCollapse(el) {
+          if (!el) return;
+          el.classList.add("show");
+          el.style.display = "block";
+          el.setAttribute("aria-expanded", "true");
+        }
+        function hideCollapse(el) {
+          if (!el) return;
+          el.classList.remove("show");
+          // clear inline display only if collapsed mode is active (we want Bootstrap to control it otherwise)
+          el.style.display = "none";
+          el.setAttribute("aria-expanded", "false");
+        }
+
+        function attachHoverHandlers() {
+          // Attach handlers to top-level nav-items that have a direct .collapse child
+          document
+            .querySelectorAll(".sidebar .nav .nav-item")
+            .forEach(function (item) {
+              if (item.__hover_attached) return;
+              item.__hover_attached = true;
+
+              var directCollapse = item.querySelector(":scope > .collapse");
+              if (directCollapse) {
+                item.addEventListener("mouseenter", function () {
+                  if (!isCollapsed()) return;
+                  item.classList.add("hover-open");
+                  showCollapse(directCollapse);
+
+                  // prepare nested collapses inside this panel: hide them and set absolute positioning (JS fallback)
+                  directCollapse
+                    .querySelectorAll(".collapse")
+                    .forEach(function (c) {
+                      c.classList.remove("show");
+                      c.style.display = "none";
+                      c.style.position = "absolute";
+                      c.style.top = "0";
+                      c.style.left = directCollapse.offsetWidth + "px";
+                      c.style.width = directCollapse.offsetWidth + "px";
+                      c.style.zIndex = 10000;
+                    });
+                });
+
+                item.addEventListener("mouseleave", function () {
+                  if (!isCollapsed()) return;
+                  item.classList.remove("hover-open");
+                  hideCollapse(directCollapse);
+                  // hide nested ones too
+                  directCollapse
+                    .querySelectorAll(".collapse")
+                    .forEach(function (c) {
+                      hideCollapse(c);
+                    });
+                });
+
+                // Attach for deeper nested nav-items inside the floating panel
+                directCollapse
+                  .querySelectorAll(".nav-item")
+                  .forEach(function (child) {
+                    var innerCollapse =
+                      child.querySelector(":scope > .collapse");
+                    if (!innerCollapse) return;
+
+                    child.addEventListener("mouseenter", function () {
+                      if (!isCollapsed()) return;
+                      child.classList.add("hover-open");
+                      // place inner panel to the right of the floating panel
+                      innerCollapse.style.position = "absolute";
+                      innerCollapse.style.top = "0";
+                      innerCollapse.style.left =
+                        directCollapse.offsetWidth - 1 + "px";
+                      innerCollapse.style.width =
+                        directCollapse.offsetWidth + "px";
+                      innerCollapse.style.zIndex = 11000;
+                      showCollapse(innerCollapse);
+                    });
+
+                    child.addEventListener("mouseleave", function () {
+                      if (!isCollapsed()) return;
+                      child.classList.remove("hover-open");
+                      hideCollapse(innerCollapse);
+                    });
+                  });
+              }
+            });
+
+          // Prevent clicks from toggling collapse while in collapsed mode (we want hover-only UX)
+          document.addEventListener(
+            "click",
+            function (e) {
+              var trigger = e.target.closest(
+                'a[data-bs-toggle="collapse"], [data-bs-target][data-bs-toggle="collapse"]'
+              );
+              if (!trigger) return;
+              if (isCollapsed()) {
+                e.preventDefault();
+                e.stopPropagation();
+                // do not toggle via click in collapsed mode — hover will control it
+              }
+            },
+            true
+          );
+        }
+
+        // Run on DOM ready
+        document.addEventListener("DOMContentLoaded", function () {
+          attachHoverHandlers();
+
+          // Observe body class changes so we can clean up when switching between collapsed and expanded
+          var observer = new MutationObserver(function (muts) {
+            muts.forEach(function (m) {
+              if (m.attributeName === "class") {
+                if (!isCollapsed()) {
+                  // restore default behaviour: remove inline display styles so Bootstrap can manage.
+                  document
+                    .querySelectorAll(".sidebar .collapse")
+                    .forEach(function (el) {
+                      el.classList.remove("show");
+                      el.style.display = "";
+                    });
+                  document
+                    .querySelectorAll(".sidebar .nav-item.hover-open")
+                    .forEach(function (el) {
+                      el.classList.remove("hover-open");
+                    });
+                } else {
+                  // ensure all panels are initially hidden (will show on hover)
+                  document
+                    .querySelectorAll(".sidebar .collapse")
+                    .forEach(function (el) {
+                      el.classList.remove("show");
+                      el.style.display = "none";
+                    });
+                }
+              }
+            });
+          });
+          observer.observe(document.body, {
+            attributes: true,
+            attributeFilter: ["class"],
+          });
+        });
+      })();
+    </script>
+  </body>
+</html>

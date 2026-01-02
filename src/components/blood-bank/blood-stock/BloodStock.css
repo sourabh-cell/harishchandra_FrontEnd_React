@@ -1,0 +1,10 @@
+.custom-hover:hover {
+  color: black !important;
+}
+
+/* Make the card span the full width of its container */
+.full-width-card {
+  max-width: none !important;
+  width: 100% !important;
+  border-radius: 0 !important; /* optional: remove rounding if you want edge-to-edge */
+}

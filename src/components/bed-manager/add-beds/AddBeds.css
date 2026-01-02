@@ -1,0 +1,30 @@
+.container {
+  max-width: 100%;
+  margin: auto;
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+  overflow: hidden; /* ensures header radius looks clean */
+}
+.card-header {
+  width: 100%;
+  background-color: #01c0c8; /* Themed background */
+  padding: 10px 15px;
+  display: flex;
+  font-size: 28px;
+  font-weight: 600; /* Icon + text side by side */
+  justify-content: center; /* Center horizontally */
+  align-items: center;
+  color: #fff;
+}
+
+.button {
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+  background-color: #01c0c8;
+  color: #fff;
+}

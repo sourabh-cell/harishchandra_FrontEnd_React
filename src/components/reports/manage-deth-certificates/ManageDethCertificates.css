@@ -1,0 +1,85 @@
+.certificate {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px;
+  border: 5px double #000;
+  background-color: #fff;
+  color: #000;
+  font-family: "Times New Roman", serif;
+}
+
+.certificate-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.certificate-header h2 {
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #01c0c8;
+}
+
+.certificate-body {
+  margin-top: 20px;
+  font-size: 18px;
+  line-height: 1.8;
+}
+
+.certificate-footer {
+  margin-top: 50px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 16px;
+}
+
+.certificate-footer div {
+  text-align: center;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #printCertificate,
+  #printCertificate * {
+    visibility: visible;
+  }
+
+  #printCertificate {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* Responsive tweaks for mobile */
+@media (max-width: 767.98px) {
+  .full-width-card.card {
+    margin: 0.5rem;
+  }
+
+  .card-header {
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+  }
+
+  .certificate {
+    padding: 18px;
+    border-width: 3px;
+    font-size: 14px;
+  }
+
+  .certificate-body {
+    font-size: 14px;
+  }
+
+  /* Make action buttons compact */
+  .view-btn i,
+  .edit-btn i {
+    font-size: 14px;
+  }
+}

@@ -1,0 +1,178 @@
+ 
+        /* ✅ Keep your exact CSS */
+        body {
+            background-color: #f0f2f5;
+        }
+
+        .header-toolbar {
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 1rem 1.5rem;
+        }
+
+        .jumbotron-hero {
+            background: linear-gradient(135deg, #01b6be, #4e77fd);
+            color: #fff;
+            padding: 30px;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .jumbotron-hero .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .jumbotron-hero .card-hero {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            align-items: left;
+            width: calc(24% - 10px);
+            min-width: 150px;
+        }
+
+        .jumbotron-hero .card-hero .icon-box {
+            width: 45px;
+            height: 45px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            color: #fff;
+        }
+
+        .card-hero .icon-box.new-patient {
+            background-color: #5cb85c;
+        }
+
+        .card-hero .icon-box.surgeries {
+            background-color: #5bc0de;
+        }
+
+        .card-hero .icon-box.discharge {
+            background-color: #f0ad4e;
+        }
+
+        .jumbotron-hero .illustration {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 350px;
+            opacity: 1;
+            pointer-events: none;
+        }
+
+        .analytics-card {
+            background-color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .analytics-card .icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .analytics-card .icon-box.green {
+            background-color: #e6f7e9;
+            color: #38b04a;
+        }
+
+        .analytics-card .icon-box.blue {
+            background-color: #e6f2ff;
+            color: #1e90ff;
+        }
+
+        .analytics-card .icon-box.pink {
+            background-color: #ffe6e6;
+            color: #d9534f;
+        }
+
+        .analytics-card .icon-box.yellow {
+            background-color: #fff8e1;
+            color: #ffc107;
+        }
+
+        .card-footer-analytics {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .view-all-link {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .percentage-change {
+            color: #5cb85c;
+            font-weight: 600;
+        }
+
+        .btn {
+            color: #007bff;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+        /* Css For Dashboard */
+        .dashboard-card {
+            color: #fff;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .dashboard-card i {
+            font-size: 35px;
+            opacity: 0.9;
+        }
+
+        .dashboard-card h2 {
+            margin: 0;
+            font-weight: bold;
+        }
+
+        .dashboard-card p {
+            margin: 0;
+            font-size: 18px;
+        }
+
+
+        @media (max-width: 768px) {
+            .jumbotron-hero .illustration {
+                display: none;
+            }
+
+            .jumbotron-hero .card-hero {
+                width: 100%;
+            }
+        }
+    

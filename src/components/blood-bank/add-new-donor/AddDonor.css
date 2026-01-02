@@ -1,0 +1,202 @@
+:root {
+  --theme-color: #01c0c8;
+  font-family: Helvetica, sans-serif, Arial;
+}
+.container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 2rem 15px;
+}
+.form-header {
+  background-color: var(--theme-color);
+  color: #fff;
+  padding: 1rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+  margin-bottom: 0;
+  text-align: center;
+}
+
+/* Ensure icon and heading are centered together */
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap; /* keep icon + heading on one line */
+}
+
+@media (max-width: 360px) {
+  .header-content {
+    white-space: normal;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+.card {
+  max-width: 900px;
+  margin: 2rem auto;
+  border: 1px solid var(--theme-color);
+  box-shadow: 0 4px 10px rgba(1, 192, 200, 0.1);
+}
+.form-label {
+  font-weight: 500;
+}
+.btn-theme {
+  background-color: var(--theme-color);
+  color: #fff;
+  border: none;
+}
+.btn-theme:hover {
+  background-color: var(--theme-color);
+  color: #fff;
+}
+.no-border:focus {
+  border: 1px solid black !important;
+  box-shadow: none !important;
+}
+
+.font-size {
+  font-size: 2rem;
+  padding: 20px;
+}
+
+.button {
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem 10px;
+  }
+
+  .card {
+    margin: 1rem auto;
+    max-width: 100%;
+  }
+
+  .form-header {
+    padding: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .font-size {
+    font-size: 1.5rem;
+    padding: 15px;
+  }
+
+  .form-header h4 {
+    font-size: 1.25rem;
+  }
+
+  .form-header i {
+    font-size: 1.25rem;
+  }
+
+  /* Stack columns on mobile */
+  .row .col,
+  .row .col-md-6 {
+    margin-bottom: 1rem;
+  }
+
+  .form-control,
+  .form-select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0.75rem;
+  }
+
+  .button {
+    padding: 12px 25px;
+    font-size: 16px;
+    width: 100%;
+  }
+
+  /* Better spacing for mobile */
+  .p-4 {
+    padding: 1.5rem !important;
+  }
+
+  .mb-3 {
+    margin-bottom: 1.25rem !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .container {
+    padding: 0.5rem 5px;
+  }
+
+  .card {
+    margin: 0.5rem auto;
+    border-radius: 0.5rem;
+  }
+
+  .form-header {
+    padding: 0.5rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+
+  .font-size {
+    font-size: 1.25rem;
+    padding: 10px;
+  }
+
+  .form-header h4 {
+    font-size: 1.1rem;
+  }
+
+  .form-header i {
+    font-size: 1.1rem;
+  }
+
+  .p-4 {
+    padding: 1rem !important;
+  }
+
+  .form-control,
+  .form-select,
+  .form-control:focus,
+  .form-select:focus {
+    font-size: 16px;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .button {
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+
+  .form-text {
+    font-size: 0.85rem;
+  }
+}
+
+/* Landscape orientation for mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .font-size {
+    font-size: 1.25rem;
+    padding: 10px;
+  }
+
+  .form-header {
+    padding: 0.5rem;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .form-control,
+  .form-select {
+    min-height: 44px; /* Apple's recommended touch target size */
+  }
+
+  .button {
+    min-height: 44px;
+    padding: 12px 25px;
+  }
+}

@@ -1,0 +1,68 @@
+/* 🔲 Fullscreen overlay */
+.global-spinner-overlay {
+    position: fixed;
+    inset: 0;
+    /* shorthand for top: 0; right: 0; bottom: 0; left: 0 */
+    width: 100vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(4px);
+    /* subtle glass effect */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 1;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 🔘 Spinner ring */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+    border: 0.3em solid rgba(1, 192, 200, 0.2);
+    /* base ring */
+    border-top-color: #01c0c8;
+    /* active color */
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite, fadeInScale 0.3s ease-in-out;
+}
+
+/* 📝 Optional loading message */
+.loading-text {
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: #01c0c8;
+    font-weight: 500;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 🔄 Animations */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

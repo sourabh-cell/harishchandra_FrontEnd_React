@@ -1,0 +1,40 @@
+.prescription-card {
+  padding: 0;
+}
+
+/* Make table scroll horizontally on small screens */
+.table-responsive {
+  overflow-x: auto;
+}
+
+/* Responsive action buttons: full width on small screens, inline on md+ */
+.prescription-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.prescription-actions .btn {
+  min-width: 140px;
+}
+
+@media (max-width: 767.98px) {
+  .prescription-card .card-body {
+    padding: 0.75rem;
+  }
+
+  .prescription-actions {
+    display: block;
+  }
+
+  .prescription-actions .btn {
+    display: block;
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .table table,
+  .table-responsive table {
+    font-size: 14px;
+  }
+}

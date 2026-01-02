@@ -1,0 +1,36 @@
+
+      body {
+        background-color: #f8f9fa;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+
+      .container-fluid {
+        margin-top: 30px;
+        padding:0px 0px;
+      }
+
+      @media screen and (max-width:600px) {
+        .content-wrapper{
+          padding:0px 0px;
+        }
+      }
+      table.dataTable thead th {
+        background-color: #e9ecef;
+      }
+
+      /* Remove bullets for responsive row details */
+      .dtr-details {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      #invoiceForm {
+        display: none;
+      }
+
+      .action-icons i {
+        cursor: pointer;
+        margin-right: 10px;
+      }
+ 

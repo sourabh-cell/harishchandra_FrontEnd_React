@@ -1,0 +1,88 @@
+.container-fluid {
+  max-width: 100%;
+  margin: auto;
+  background: #fff;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+  overflow: hidden; /* ensures header radius looks clean */
+}
+.container1 {
+  margin: auto;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+.card-header {
+  width: 100%;
+  background-color: #01c0c8;
+  padding: 18px 15px;
+  display: flex;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.button {
+  padding: 12px 30px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+}
+.card-border {
+  border: 1px solid #ddd; /* Light gray border */
+  border-top: 8px; /* Rounded corners */
+
+  overflow: hidden; /* Ensures child elements respect border radius */
+}
+.card-title {
+  display: flex;
+  justify-content: space-between; /* Pushes name left and image right */
+  align-items: center; /* Vertically centers them */
+  white-space: nowrap; /* Keeps them on the same line */
+  padding: 0 px; /* Optional: some horizontal padding */
+}
+
+.card-title .image {
+  width: 40px; /* Adjust size as needed */
+  height: 40px;
+}
+
+.card-title .name {
+  font-size: 25px; /* Optional styling */
+  font-weight: bold;
+}
+.accordion-body {
+  text-align: justify;
+}
+.file-upload-wrapper {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.file-upload-button {
+  border: 1px solid #ccc;
+  color: black;
+  background-color: #f1f1f1;
+  padding: 6px 12px;
+  cursor: pointer;
+  margin-left: 6px;
+}
+
+.file-upload-input {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+#file-name {
+  margin-left: 10px;
+  font-family: sans-serif;
+}
+
+.card {
+  border-radius: 10px;
+}

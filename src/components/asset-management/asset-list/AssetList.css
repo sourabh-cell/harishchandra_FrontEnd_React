@@ -1,0 +1,11 @@
+/* Extra mobile adjustments */
+@media (max-width: 576px) {
+  .card-header .text {
+    font-size: 1rem;
+  }
+
+  .btn-outline-secondary {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+}

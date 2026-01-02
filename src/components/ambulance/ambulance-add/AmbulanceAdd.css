@@ -1,0 +1,193 @@
+/* Global Styles */
+
+/* Container and Card Styling */
+.container-fluid {
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.card {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* Header Styling - Matching the turquoise color from the image */
+.card-header {
+  background-color: #01c0c8 !important;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.card-header h4 {
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Form Styling */
+.card-body {
+  background: #ffffff;
+}
+
+.form-label {
+  color: #495057;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.form-control,
+.form-select {
+  border: 2px solid black;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background-color: #ffffff;
+}
+
+.form-control:focus,
+.form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(32, 201, 151, 0.25);
+  background-color: #ffffff;
+}
+
+.form-control::placeholder {
+  color: #adb5bd;
+  font-style: italic;
+}
+
+/* Textarea specific styling */
+textarea.form-control {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Button Styling */
+.btn-primary {
+  background-color: #01c0c8;
+  border: none;
+
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  font-size: 1rem;
+
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #01c0c8;
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* Required field asterisk */
+.text-danger {
+  color: #dc3545 !important;
+}
+
+/* Alert Styling */
+.alert {
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.alert-success {
+  background-color: #d1edff;
+  color: #0c5460;
+}
+
+/* Row and Column Spacing */
+.row.g-3 > * {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+  .container-fluid {
+    margin: 1rem auto;
+    padding: 0 0.5rem;
+  }
+
+  .card-header h4 {
+    font-size: 1.25rem;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 1rem;
+  }
+
+  .col-12.text-end {
+    text-align: center !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .card-body {
+    padding: 1.5rem !important;
+  }
+
+  .form-control,
+  .form-select {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .form-label {
+    font-size: 0.9rem;
+  }
+}
+
+/* Animation for form appearance */
+.card {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus states for better accessibility */
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+  outline: none;
+}
+
+/* Custom scrollbar for textarea */
+textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+textarea::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+textarea::-webkit-scrollbar-thumb {
+  background: #20c997;
+  border-radius: 3px;
+}
+
+textarea::-webkit-scrollbar-thumb:hover {
+  background: #17a2b8;
+}

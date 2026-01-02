@@ -1,0 +1,36 @@
+.edit-btn-hover:hover {
+  background-color: rgba(233, 229, 10, 0.664) !important;
+  color: white !important;
+  border-color: rgba(233, 229, 10, 0.664) !important;
+}
+
+.edit1-btn-hover:hover {
+  background-color: #db2100 !important;
+  color: white !important;
+  border-color: #db2100 !important;
+}
+
+.btn1 {
+  position: relative;
+  background: #444;
+  border: none;
+  color: white;
+  padding: 10px;
+
+  cursor: pointer;
+}
+
+.btn1:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: -15px;
+  transform: translateX(-50%);
+  background: white;
+  color: black;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  opacity: 1;
+  z-index: 1;
+}
