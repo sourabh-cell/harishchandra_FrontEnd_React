@@ -114,7 +114,7 @@ const ManageInvoice = () => {
   const today = new Date().toISOString().split("T")[0];
 
   return (
-    <div className="container my-5">
+    
       <div className="card shadow mb-4">
         <div className="card-header text-center text-white" style={{ backgroundColor: "#01C0C8" }}>
           <h3 className="mb-0">
@@ -169,7 +169,7 @@ const ManageInvoice = () => {
             </tbody>
           </table>
         </div>
-      </div>
+     
 
       {/* Modal */}
       <div className="modal fade" id="invoiceModal" tabIndex="-1" aria-hidden="true">

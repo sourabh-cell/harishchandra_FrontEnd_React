@@ -1,11 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchPatients, selectPatients } from "../../../features/patientAutoSuggestionSlice";
 
 const CreateInvoice = () => {
+  const dispatch = useDispatch();
+  const patients = useSelector(selectPatients);
+  const patientStatus = useSelector((state) => state.patients.status);
+
+  useEffect(() => {
+    if (patientStatus === 'idle') {
+      dispatch(fetchPatients());
+    }
+  }, [patientStatus, dispatch]);
   const [showServices, setShowServices] = useState(false);
   const [doctors, setDoctors] = useState([{ name: "", fee: 0 }]);
   const [tests, setTests] = useState([{ name: "", price: 0 }]);
   const [medicines, setMedicines] = useState([{ name: "", qty: 1, price: 10 }]);
   const [beds, setBeds] = useState([{ type: "General Ward", days: 1, price: 1000 }]);
+  const [patientIdInput, setPatientIdInput] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     patientId: "",
@@ -33,7 +45,15 @@ const CreateInvoice = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'patientId') {
+      setPatientIdInput(value);
+      const selected = patients.find(p => `${p.fullName} - ${p.hospitalPatientId}` === value);
+      if (selected) {
+        setFormData(prev => ({ ...prev, patientId: selected.id, name: selected.fullName, age: selected.age }));
+      }
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleServiceChange = (type, index, field, value) => {
@@ -79,7 +99,7 @@ const CreateInvoice = () => {
   };
 
   return (
-    <div className="container my-5">
+   
       <div className="card shadow">
         <div className="card-header text-center text-white" style={{ backgroundColor: "#01C0C8" }}>
           <h3 className="mb-0"><i className="fa-solid fa-file-invoice me-2"></i>Create Hospital Invoice</h3>
@@ -90,15 +110,15 @@ const CreateInvoice = () => {
             <h5>👤 Patient Details</h5>
             <div className="row g-3 mb-3">
               <div className="col-md-6">
+                <label className="form-label">Patient ID</label>
+                <input type="text" className="form-control" name="patientId" value={patientIdInput} onChange={handleChange} list="patientSuggestions" required />
+              </div>
+              <div className="col-md-6">
                 <label className="form-label">Name</label>
                 <input type="text" className="form-control" name="name" value={formData.name} onChange={handleChange}
                   required pattern="[A-Za-z ]+" title="Only alphabets are allowed"
                   onInput={(e) => e.target.value = e.target.value.replace(/[^A-Za-z ]/g, '')}
                 />
-              </div>
-              <div className="col-md-6">
-                <label className="form-label">Patient ID</label>
-                <input type="text" className="form-control" name="patientId" value={formData.patientId} onChange={handleChange} required />
               </div>
               <div className="col-md-6">
                 <label className="form-label">Age</label>
@@ -265,9 +285,14 @@ const CreateInvoice = () => {
               </>
             )}
           </form>
+          <datalist id="patientSuggestions">
+            {patients.map(patient => (
+              <option key={patient.id} value={`${patient.fullName} - ${patient.hospitalPatientId}`} />
+            ))}
+          </datalist>
         </div>
       </div>
-    </div>
+
   );
 };
 
