@@ -81,6 +81,7 @@ import ViewEmergency from "./components/patients/emergency/view-emergency/ViewEm
 import MyProfile from "./components/auth/my-profile/MyProfile.jsx";
 import EditPathologyForm from "./components/reports/pathalogy/edit-pathology-report/EditPathologyForm.jsx";
 import EditRadiologyForm from "./components/reports/radiology/edit-radiology-report/EditRadiologyForm.jsx";
+import ManageInvoice from "./components/invoice/manage-invoices/ManageInvoice.jsx";
 
 function SessionManager() {
   const exp = useSelector(selectAuthExpiry);
@@ -466,6 +467,12 @@ function App() {
           path: "invoice/create-invoice",
           element: <CreateInvoice />,
         },
+
+        {
+          path: "invoice/manage-invoices",
+          element: <ManageInvoice />,
+        },
+
 
         //my profile route can be added here
         {

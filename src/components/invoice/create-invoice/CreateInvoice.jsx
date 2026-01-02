@@ -1,25 +1,11 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-
-import {
-  fetchPatients,
-  selectPatients,
-} from "../../../features/patientAutoSuggestionSlice";
-
-import {
-  fetchInvoiceFormData,
-  selectInvoiceFormData,
-} from "../../../features/InvoiceSlice";
+import React, { useState } from "react";
 
 const CreateInvoice = () => {
-  const dispatch = useDispatch();
-  const patients = useSelector(selectPatients);
-  const invoiceData = useSelector(selectInvoiceFormData);
-
-  const [query, setQuery] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [showServices, setShowServices] = useState(false);
-
+  const [doctors, setDoctors] = useState([{ name: "", fee: 0 }]);
+  const [tests, setTests] = useState([{ name: "", price: 0 }]);
+  const [medicines, setMedicines] = useState([{ name: "", qty: 1, price: 10 }]);
+  const [beds, setBeds] = useState([{ type: "General Ward", days: 1, price: 1000 }]);
   const [formData, setFormData] = useState({
     name: "",
     patientId: "",
@@ -28,194 +14,258 @@ const CreateInvoice = () => {
     admission: "",
     discharge: "",
     method: "Cash",
-    status: "Paid",
+    status: "Paid"
   });
-
-  const [doctors, setDoctors] = useState([]);
-  const [tests, setTests] = useState([]);
-  const [medicines, setMedicines] = useState([]);
-  const [beds, setBeds] = useState([]);
-
-  /* ---------------- LOAD PATIENTS ---------------- */
-  useEffect(() => {
-    dispatch(fetchPatients());
-  }, [dispatch]);
-
-  /* ---------------- AUTO-FILL FROM BACKEND ---------------- */
-  useEffect(() => {
-    if (!invoiceData) return;
-
-    setFormData({
-      name: invoiceData.patientName || "",
-      patientId: invoiceData.patientId || "",
-      age: invoiceData.patientAge || "",
-      contact: invoiceData.patientContact || "",
-      admission: invoiceData.admissionDate || "",
-      discharge: invoiceData.dischargeDate || "",
-      method: invoiceData.paymentMethod || "Cash",
-      status: invoiceData.paymentStatus || "Paid",
-    });
-
-    setDoctors(
-      invoiceData.doctors?.map(d => ({
-        name: d.doctorName,
-        fee: d.fee,
-      })) || []
-    );
-
-    setTests([
-      ...(invoiceData.pathologyTests || []),
-      ...(invoiceData.radiologyTests || []),
-    ].map(t => ({
-      name: t.testName,
-      price: t.price,
-    })));
-
-    setMedicines(
-      invoiceData.medicines?.map(m => ({
-        name: m.medicineName,
-        qty: m.qty || 1,
-        price: m.pricePerUnit,
-      })) || []
-    );
-
-    setBeds(
-      invoiceData.rooms?.map(r => ({
-        type: r.roomName,
-        days: r.days || 1,
-        price: r.pricePerDay,
-      })) || []
-    );
-
-    setShowServices(true);
-  }, [invoiceData]);
-
-  /* ---------------- HANDLERS ---------------- */
-  const handleChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
 
   const handleAdd = (type) => {
     if (type === "doctor") setDoctors([...doctors, { name: "", fee: 0 }]);
     if (type === "test") setTests([...tests, { name: "", price: 0 }]);
-    if (type === "medicine") setMedicines([...medicines, { name: "", qty: 1, price: 0 }]);
-    if (type === "bed") setBeds([...beds, { type: "General Ward", days: 1, price: 0 }]);
+    if (type === "medicine") setMedicines([...medicines, { name: "", qty: 1, price: 10 }]);
+    if (type === "bed") setBeds([...beds, { type: "General Ward", days: 1, price: 1000 }]);
   };
 
-  const handleRemove = (type, i) => {
-    if (type === "doctor") setDoctors(doctors.filter((_, idx) => idx !== i));
-    if (type === "test") setTests(tests.filter((_, idx) => idx !== i));
-    if (type === "medicine") setMedicines(medicines.filter((_, idx) => idx !== i));
-    if (type === "bed") setBeds(beds.filter((_, idx) => idx !== i));
+  const handleRemove = (type, index) => {
+    if (type === "doctor") setDoctors(doctors.filter((_, i) => i !== index));
+    if (type === "test") setTests(tests.filter((_, i) => i !== index));
+    if (type === "medicine") setMedicines(medicines.filter((_, i) => i !== index));
+    if (type === "bed") setBeds(beds.filter((_, i) => i !== index));
   };
 
-  const handleServiceChange = (type, i, field, value) => {
-    const map = { doctor: doctors, test: tests, medicine: medicines, bed: beds };
-    const setter = { doctor: setDoctors, test: setTests, medicine: setMedicines, bed: setBeds };
-    const arr = [...map[type]];
-    arr[i][field] = value;
-    setter[type](arr);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleServiceChange = (type, index, field, value) => {
+    if (type === "doctor") {
+      const newDoctors = [...doctors];
+      newDoctors[index][field] = field === "fee" ? parseFloat(value) : value;
+      setDoctors(newDoctors);
+    }
+    if (type === "test") {
+      const newTests = [...tests];
+      newTests[index][field] = field === "price" ? parseFloat(value) : value;
+      setTests(newTests);
+    }
+    if (type === "medicine") {
+      const newMedicines = [...medicines];
+      if (field === "qty" || field === "price") newMedicines[index][field] = parseFloat(value);
+      else newMedicines[index][field] = value;
+      setMedicines(newMedicines);
+    }
+    if (type === "bed") {
+      const newBeds = [...beds];
+      if (field === "days" || field === "price") newBeds[index][field] = parseFloat(value);
+      else newBeds[index][field] = value;
+      setBeds(newBeds);
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log({
+    const data = {
       ...formData,
+      age: parseInt(formData.age),
       doctors,
       tests,
       medicines,
-      beds,
-    });
+      beds
+    };
+    const patients = JSON.parse(localStorage.getItem("patients") || "[]");
+    patients.push(data);
+    localStorage.setItem("patients", JSON.stringify(patients));
+    localStorage.setItem("hospitalInvoice", JSON.stringify(data));
+    window.location.href = "invoice-table.html";
   };
 
-  /* ---------------- UI ---------------- */
   return (
-    <div className="card shadow">
-      <div className="card-header text-white text-center" style={{ background: "#01C0C8" }}>
-        <h4>Create Hospital Invoice</h4>
-      </div>
-
-      <div className="card-body">
-        {/* Patient Search */}
-        <label className="form-label">Patient Name / ID</label>
-        <input
-          className="form-control"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setShowSuggestions(true);
-          }}
-          placeholder="Search patient"
-        />
-
-        {showSuggestions && (
-          <ul className="list-group position-absolute w-50">
-            {patients
-              .filter(p =>
-                p.patientName.toLowerCase().includes(query.toLowerCase()) ||
-                String(p.id).includes(query)
-              )
-              .map(p => (
-                <li
-                  key={p.id}
-                  className="list-group-item list-group-item-action"
-                  onClick={() => {
-                    setQuery(p.patientName);
-                    setShowSuggestions(false);
-                    dispatch(fetchInvoiceFormData(p.id));
-                  }}
-                >
-                  {p.patientName} ({p.hospitalPatientId})
-                </li>
-              ))}
-          </ul>
-        )}
-
-        <hr />
-
-        {/* Patient Details */}
-        <div className="row g-3 mb-3">
-          {["name", "patientId", "age", "contact", "admission", "discharge"].map(f => (
-            <div className="col-md-6" key={f}>
-              <label className="form-label text-capitalize">{f}</label>
-              <input
-                className="form-control"
-                name={f}
-                value={formData[f]}
-                onChange={handleChange}
-              />
-            </div>
-          ))}
+    <div className="container my-5">
+      <div className="card shadow">
+        <div className="card-header text-center text-white" style={{ backgroundColor: "#01C0C8" }}>
+          <h3 className="mb-0"><i className="fa-solid fa-file-invoice me-2"></i>Create Hospital Invoice</h3>
         </div>
-
-        {!showServices && (
-          <div className="text-center">
-            <button className="btn btn-info text-white" onClick={() => setShowServices(true)}>
-              + Add Services
-            </button>
-          </div>
-        )}
-
-        {/* Services */}
-        {showServices && (
-          <>
-            <h5>Doctors</h5>
-            {doctors.map((d, i) => (
-              <div className="row g-2 mb-2" key={i}>
-                <input className="col form-control" value={d.name}
-                  onChange={e => handleServiceChange("doctor", i, "name", e.target.value)} />
-                <input className="col form-control" type="number" value={d.fee}
-                  onChange={e => handleServiceChange("doctor", i, "fee", e.target.value)} />
-                <button className="btn btn-danger col-1" onClick={() => handleRemove("doctor", i)}>X</button>
+        <div className="card-body">
+          <form id="invoiceForm" onSubmit={handleSubmit}>
+            {/* Patient Details */}
+            <h5>👤 Patient Details</h5>
+            <div className="row g-3 mb-3">
+              <div className="col-md-6">
+                <label className="form-label">Name</label>
+                <input type="text" className="form-control" name="name" value={formData.name} onChange={handleChange}
+                  required pattern="[A-Za-z ]+" title="Only alphabets are allowed"
+                  onInput={(e) => e.target.value = e.target.value.replace(/[^A-Za-z ]/g, '')}
+                />
               </div>
-            ))}
-            <button className="btn btn-outline-primary" onClick={() => handleAdd("doctor")}>+ Add Doctor</button>
+              <div className="col-md-6">
+                <label className="form-label">Patient ID</label>
+                <input type="text" className="form-control" name="patientId" value={formData.patientId} onChange={handleChange} required />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Age</label>
+                <input type="number" className="form-control" name="age" value={formData.age} onChange={handleChange} min="1" required />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Contact</label>
+                <input type="text" className="form-control" name="contact" value={formData.contact} onChange={handleChange} maxLength="10" required />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Admission Date</label>
+                <input type="date" className="form-control" name="admission" value={formData.admission} onChange={handleChange} required />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label">Discharge Date</label>
+                <input type="date" className="form-control" name="discharge" value={formData.discharge} onChange={handleChange} required />
+              </div>
+            </div>
 
-            <hr />
-            <button className="btn btn-success mt-3" onClick={handleSubmit}>
-              Save Invoice
-            </button>
-          </>
-        )}
+            <div className="text-center mb-4">
+              {!showServices && <button type="button" id="showServices" className="btn" style={{ backgroundColor: "#01C0C8", color: "white" }} onClick={() => setShowServices(true)}>+ Add Services</button>}
+            </div>
+
+            {/* Services Section */}
+            {showServices && (
+              <>
+                {/* Doctor Fees */}
+                <h5>👨‍⚕️ Doctor Fees</h5>
+                <table className="table table-bordered text-center align-middle" id="doctorTable">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Doctor Name</th>
+                      <th>Fee (₹)</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {doctors.map((doc, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input type="text" className="form-control doc-name" placeholder="Dr. Name" value={doc.name} required
+                            onChange={e => handleServiceChange("doctor", i, "name", e.target.value)} />
+                        </td>
+                        <td>
+                          <input type="number" className="form-control doc-fee" value={doc.fee} min="0" required
+                            onChange={e => handleServiceChange("doctor", i, "fee", e.target.value)} />
+                        </td>
+                        <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("doctor", i)}>X</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button type="button" id="addDoctor" className="btn btn-outline-primary mb-3" onClick={() => handleAdd("doctor")}>+ Add Doctor</button>
+
+                {/* Tests */}
+                <h5>🧪 Tests / Treatments</h5>
+                <table className="table table-bordered text-center align-middle" id="testTable">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Test / Treatment Name</th>
+                      <th>Price (₹)</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tests.map((t, i) => (
+                      <tr key={i}>
+                        <td><input type="text" className="form-control test-name" placeholder="Test Name" value={t.name} required
+                          onChange={e => handleServiceChange("test", i, "name", e.target.value)} /></td>
+                        <td><input type="number" className="form-control test-price" value={t.price} min="0" required
+                          onChange={e => handleServiceChange("test", i, "price", e.target.value)} /></td>
+                        <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("test", i)}>X</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button type="button" id="addTest" className="btn btn-outline-primary mb-3" onClick={() => handleAdd("test")}>+ Add Test</button>
+
+                {/* Medicines */}
+                <h5>💊 Medicines</h5>
+                <table className="table table-bordered text-center align-middle" id="medicineTable">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Medicine Name</th>
+                      <th>Qty</th>
+                      <th>Price per Unit (₹)</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {medicines.map((m, i) => (
+                      <tr key={i}>
+                        <td><input type="text" className="form-control med-name" placeholder="Medicine Name" value={m.name} required
+                          onChange={e => handleServiceChange("medicine", i, "name", e.target.value)} /></td>
+                        <td><input type="number" className="form-control med-qty" value={m.qty} min="1" required
+                          onChange={e => handleServiceChange("medicine", i, "qty", e.target.value)} /></td>
+                        <td><input type="number" className="form-control med-price" value={m.price} min="0" required
+                          onChange={e => handleServiceChange("medicine", i, "price", e.target.value)} /></td>
+                        <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("medicine", i)}>X</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button type="button" id="addMedicine" className="btn btn-outline-primary mb-3" onClick={() => handleAdd("medicine")}>+ Add Medicine</button>
+
+                {/* Bed Charges */}
+                <h5>🛏️ Bed / Room Charges</h5>
+                <table className="table table-bordered text-center align-middle" id="bedTable">
+                  <thead className="table-light">
+                    <tr>
+                      <th>Room Type</th>
+                      <th>Days</th>
+                      <th>Charge per Day (₹)</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {beds.map((b, i) => (
+                      <tr key={i}>
+                        <td>
+                          <select className="form-select bed-type" value={b.type} required
+                            onChange={e => handleServiceChange("bed", i, "type", e.target.value)}>
+                            <option value="General Ward">General Ward</option>
+                            <option value="Semi-Private">Semi-Private</option>
+                            <option value="Private Room">Private Room</option>
+                            <option value="ICU">ICU</option>
+                          </select>
+                        </td>
+                        <td><input type="number" className="form-control bed-days" value={b.days} min="1" required
+                          onChange={e => handleServiceChange("bed", i, "days", e.target.value)} /></td>
+                        <td><input type="number" className="form-control bed-price" value={b.price} min="0" required
+                          onChange={e => handleServiceChange("bed", i, "price", e.target.value)} /></td>
+                        <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("bed", i)}>X</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button type="button" id="addBed" className="btn btn-outline-primary mb-3" onClick={() => handleAdd("bed")}>+ Add Bed</button>
+
+                {/* Payment Info */}
+                <h5>💳 Payment Info</h5>
+                <div className="row g-3 mb-4">
+                  <div className="col-md-6">
+                    <label className="form-label">Payment Method</label>
+                    <select className="form-select" name="method" value={formData.method} onChange={handleChange}>
+                      <option>Cash</option>
+                      <option>Card</option>
+                      <option>Online</option>
+                    </select>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Payment Status</label>
+                    <select className="form-select" name="status" value={formData.status} onChange={handleChange}>
+                      <option>Paid</option>
+                      <option>Pending</option>
+                      <option>Partial</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <button type="submit" className="btn" style={{ backgroundColor: "#01C0C8", color: "white" }}>Save & View Table</button>
+                </div>
+              </>
+            )}
+          </form>
+        </div>
       </div>
     </div>
   );
