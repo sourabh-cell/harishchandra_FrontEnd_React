@@ -15,7 +15,7 @@ const CreateInvoice = () => {
   const [showServices, setShowServices] = useState(false);
   const [doctors, setDoctors] = useState([{ name: "", fee: 0 }]);
   const [tests, setTests] = useState([{ name: "", price: 0 }]);
-  const [medicines, setMedicines] = useState([{ name: "", qty: 1, price: 10 }]);
+  const [medicines, setMedicines] = useState([{ name: "", qty: 1, price: 0.5 }]);
   const [beds, setBeds] = useState([{ type: "General Ward", days: 1, price: 1000 }]);
   const [patientIdInput, setPatientIdInput] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState(null); // Store actual patient ID
@@ -135,7 +135,7 @@ const CreateInvoice = () => {
   const handleAdd = (type) => {
     if (type === "doctor") setDoctors([...doctors, { name: "", fee: 0 }]);
     if (type === "test") setTests([...tests, { name: "", price: 0 }]);
-    if (type === "medicine") setMedicines([...medicines, { name: "", qty: 1, price: 10 }]);
+    if (type === "medicine") setMedicines([...medicines, { name: "", qty: 1, price: 0.5 }]);
     if (type === "bed") setBeds([...beds, { type: "General Ward", days: 1, price: 1000 }]);
   };
 
@@ -374,7 +374,7 @@ const CreateInvoice = () => {
                             onChange={e => handleServiceChange("doctor", i, "name", e.target.value)} />
                         </td>
                         <td>
-                          <input type="number" className="form-control doc-fee" value={doc.fee} min="0" required
+                          <input type="number" className="form-control doc-fee" value={doc.fee} min="0" step="0.01" required
                             onChange={e => handleServiceChange("doctor", i, "fee", e.target.value)} />
                         </td>
                         <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("doctor", i)}>X</button></td>
@@ -399,7 +399,7 @@ const CreateInvoice = () => {
                       <tr key={i}>
                         <td><input type="text" className="form-control test-name" placeholder="Test Name" value={t.name} required
                           onChange={e => handleServiceChange("test", i, "name", e.target.value)} /></td>
-                        <td><input type="number" className="form-control test-price" value={t.price} min="0" required
+                        <td><input type="number" className="form-control test-price" value={t.price} min="0" step="0.01" required
                           onChange={e => handleServiceChange("test", i, "price", e.target.value)} /></td>
                         <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("test", i)}>X</button></td>
                       </tr>
@@ -424,9 +424,9 @@ const CreateInvoice = () => {
                       <tr key={i}>
                         <td><input type="text" className="form-control med-name" placeholder="Medicine Name" value={m.name} required
                           onChange={e => handleServiceChange("medicine", i, "name", e.target.value)} /></td>
-                        <td><input type="number" className="form-control med-qty" value={m.qty} min="1" required
+                        <td><input type="number" className="form-control med-qty" value={m.qty} min="0.01" step="0.01" required
                           onChange={e => handleServiceChange("medicine", i, "qty", e.target.value)} /></td>
-                        <td><input type="number" className="form-control med-price" value={m.price} min="0" required
+                        <td><input type="number" className="form-control med-price" value={m.price} min="0" step="0.01" required
                           onChange={e => handleServiceChange("medicine", i, "price", e.target.value)} /></td>
                         <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("medicine", i)}>X</button></td>
                       </tr>
@@ -460,7 +460,7 @@ const CreateInvoice = () => {
                         </td>
                         <td><input type="number" className="form-control bed-days" value={b.days} min="1" required
                           onChange={e => handleServiceChange("bed", i, "days", e.target.value)} /></td>
-                        <td><input type="number" className="form-control bed-price" value={b.price} min="0" required
+                        <td><input type="number" className="form-control bed-price" value={b.price} min="0" step="0.01" required
                           onChange={e => handleServiceChange("bed", i, "price", e.target.value)} /></td>
                         <td><button type="button" className="btn btn-danger btn-sm remove-row" onClick={() => handleRemove("bed", i)}>X</button></td>
                       </tr>
