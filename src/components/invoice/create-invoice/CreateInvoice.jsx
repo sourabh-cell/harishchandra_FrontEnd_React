@@ -320,14 +320,33 @@ const CreateInvoice = () => {
                 <label className="form-label">Contact</label>
                 <input type="text" className="form-control" name="contact" value={formData.contact} onChange={handleChange} maxLength="10" required />
               </div>
+             <div className="col-md-6">
+  <label className="form-label">Admission Date</label>
+  <input
+    type="date"
+    className="form-control"
+    name="admission"
+    value={formData.admission}
+    onChange={handleChange}
+    max={new Date().toISOString().split("T")[0]} // ⛔ future dates disabled
+    required
+  />
+</div>
+
               <div className="col-md-6">
-                <label className="form-label">Admission Date</label>
-                <input type="date" className="form-control" name="admission" value={formData.admission} onChange={handleChange} required />
-              </div>
-              <div className="col-md-6">
-                <label className="form-label">Discharge Date</label>
-                <input type="date" className="form-control" name="discharge" value={formData.discharge} onChange={handleChange} required />
-              </div>
+  <label className="form-label">Discharge Date</label>
+  <input
+    type="date"
+    className="form-control"
+    name="discharge"
+    value={formData.discharge}
+    onChange={handleChange}
+    min={new Date().toISOString().split("T")[0]}
+    max={new Date().toISOString().split("T")[0]}
+    required
+  />
+</div>
+
             </div>
 
             <div className="text-center mb-4">
