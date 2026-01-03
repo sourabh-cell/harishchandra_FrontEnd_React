@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { fetchPatients, selectPatients } from "../../../features/patientAutoSuggestionSlice";
-import { fetchInvoiceFormData, selectInvoiceFormData, createInvoice } from "../../../features/InvoiceSlice";
+import { fetchInvoiceFormData, selectInvoiceFormData, createInvoice, fetchAllInvoices, clearInvoiceState, clearCreateInvoiceState } from "../../../features/InvoiceSlice";
 import Swal from "sweetalert2";
 
 const CreateInvoice = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const patients = useSelector(selectPatients);
   const patientStatus = useSelector((state) => state.patients.status);
   const invoiceFormData = useSelector(selectInvoiceFormData);
@@ -29,6 +31,32 @@ const CreateInvoice = () => {
     method: "Cash",
     status: "Paid"
   });
+
+  // Reset form when component mounts
+  useEffect(() => {
+    // Clear Redux invoice state
+    dispatch(clearInvoiceState());
+    dispatch(clearCreateInvoiceState());
+    
+    // Reset all local state to initial values
+    setShowServices(false);
+    setDoctors([{ name: "", fee: 0 }]);
+    setTests([{ name: "", price: 0 }]);
+    setMedicines([{ name: "", qty: 1, price: 10 }]);
+    setBeds([{ type: "General Ward", days: 1, price: 1000 }]);
+    setPatientIdInput("");
+    setSelectedPatientId(null);
+    setFormData({
+      name: "",
+      patientId: "",
+      age: "",
+      contact: "",
+      admission: "",
+      discharge: "",
+      method: "Cash",
+      status: "Paid"
+    });
+  }, [dispatch]);
 
   useEffect(() => {
     if (patientStatus === 'idle') {
@@ -272,13 +300,15 @@ const CreateInvoice = () => {
 
     try {
       await dispatch(createInvoice(payload)).unwrap();
+      // Fetch updated invoices list
+      await dispatch(fetchAllInvoices());
       Swal.fire({
         icon: "success",
         title: "Success",
         text: "Invoice created successfully!",
+        confirmButtonColor: "#01C0C8",
       }).then(() => {
-        // Optionally redirect or reset form
-        // window.location.href = "invoice-table.html";
+        navigate("/dashboard/invoice/manage-invoices");
       });
     } catch (error) {
       const errorMessage = error?.message || error?.error || "Failed to create invoice";
@@ -286,6 +316,7 @@ const CreateInvoice = () => {
         icon: "error",
         title: "Error",
         text: errorMessage,
+        confirmButtonColor: "#01C0C8",
       });
     }
   };
