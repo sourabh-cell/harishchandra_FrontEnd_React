@@ -1,23 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchPatients, selectPatients } from "../../../features/patientAutoSuggestionSlice";
+import { fetchInvoiceFormData, selectInvoiceFormData, createInvoice } from "../../../features/InvoiceSlice";
+import Swal from "sweetalert2";
 
 const CreateInvoice = () => {
   const dispatch = useDispatch();
   const patients = useSelector(selectPatients);
   const patientStatus = useSelector((state) => state.patients.status);
+  const invoiceFormData = useSelector(selectInvoiceFormData);
+  const invoiceStatus = useSelector((state) => state.invoice.status);
+  const createInvoiceStatus = useSelector((state) => state.invoice.createStatus);
 
-  useEffect(() => {
-    if (patientStatus === 'idle') {
-      dispatch(fetchPatients());
-    }
-  }, [patientStatus, dispatch]);
   const [showServices, setShowServices] = useState(false);
   const [doctors, setDoctors] = useState([{ name: "", fee: 0 }]);
   const [tests, setTests] = useState([{ name: "", price: 0 }]);
   const [medicines, setMedicines] = useState([{ name: "", qty: 1, price: 10 }]);
   const [beds, setBeds] = useState([{ type: "General Ward", days: 1, price: 1000 }]);
   const [patientIdInput, setPatientIdInput] = useState("");
+  const [selectedPatientId, setSelectedPatientId] = useState(null); // Store actual patient ID
   const [formData, setFormData] = useState({
     name: "",
     patientId: "",
@@ -28,6 +29,108 @@ const CreateInvoice = () => {
     method: "Cash",
     status: "Paid"
   });
+
+  useEffect(() => {
+    if (patientStatus === 'idle') {
+      dispatch(fetchPatients());
+    }
+  }, [patientStatus, dispatch]);
+
+  // Populate form when API data is received
+  useEffect(() => {
+    if (invoiceFormData && invoiceStatus === 'succeeded') {
+      // Store patient ID from API response if available
+      if (invoiceFormData.patientId) {
+        setSelectedPatientId(invoiceFormData.patientId);
+      }
+
+      // Map API response to form state
+      setFormData(prev => ({
+        ...prev,
+        name: invoiceFormData.patientName || prev.name,
+        age: invoiceFormData.patientAge || prev.age,
+        contact: invoiceFormData.patientContact || prev.contact,
+        patientId: invoiceFormData.hospitalPatientId || prev.patientId,
+        admission: invoiceFormData.admissionDate ? invoiceFormData.admissionDate.split('T')[0] : prev.admission,
+        discharge: invoiceFormData.dischargeDate ? invoiceFormData.dischargeDate.split('T')[0] : prev.discharge,
+        method: invoiceFormData.paymentMethod || prev.method,
+        status: invoiceFormData.paymentStatus || prev.status
+      }));
+
+      // Update patientIdInput to show hospitalPatientId
+      if (invoiceFormData.hospitalPatientId) {
+        setPatientIdInput(invoiceFormData.hospitalPatientId);
+      }
+
+      // Map doctors (preserve IDs from API)
+      if (invoiceFormData.doctors && invoiceFormData.doctors.length > 0) {
+        const mappedDoctors = invoiceFormData.doctors.map(doc => ({
+          doctorId: doc.doctorId || null,
+          name: doc.doctorName || "",
+          fee: doc.fee || 0
+        }));
+        setDoctors(mappedDoctors);
+      }
+
+      // Map medicines (preserve IDs from API)
+      if (invoiceFormData.medicines && invoiceFormData.medicines.length > 0) {
+        const mappedMedicines = invoiceFormData.medicines.map(med => ({
+          medicineId: med.medicineId || null,
+          name: med.medicineName || "",
+          qty: med.qty || 1,
+          price: med.pricePerUnit || 0
+        }));
+        setMedicines(mappedMedicines);
+      }
+
+      // Map rooms to beds (preserve IDs from API)
+      if (invoiceFormData.rooms && invoiceFormData.rooms.length > 0) {
+        const mappedBeds = invoiceFormData.rooms.map(room => ({
+          roomId: room.roomId || null,
+          bedId: room.bedId || null,
+          type: room.roomName || "General Ward",
+          days: room.days || 1,
+          price: room.pricePerDay || 0
+        }));
+        setBeds(mappedBeds);
+      }
+
+      // Map pathology and radiology tests (preserve IDs from API)
+      const allTests = [];
+      if (invoiceFormData.pathologyTests && invoiceFormData.pathologyTests.length > 0) {
+        invoiceFormData.pathologyTests.forEach(test => {
+          allTests.push({
+            testId: test.testId || null,
+            name: test.testName || "",
+            price: test.price || 0,
+            testType: "pathology"
+          });
+        });
+      }
+      if (invoiceFormData.radiologyTests && invoiceFormData.radiologyTests.length > 0) {
+        invoiceFormData.radiologyTests.forEach(test => {
+          allTests.push({
+            testId: test.testId || null,
+            name: test.testName || "",
+            price: test.price || 0,
+            testType: "radiology"
+          });
+        });
+      }
+      if (allTests.length > 0) {
+        setTests(allTests);
+      }
+
+      // Show services section if there's any service data
+      if (invoiceFormData.doctors?.length > 0 || 
+          invoiceFormData.medicines?.length > 0 || 
+          invoiceFormData.rooms?.length > 0 || 
+          invoiceFormData.pathologyTests?.length > 0 || 
+          invoiceFormData.radiologyTests?.length > 0) {
+        setShowServices(true);
+      }
+    }
+  }, [invoiceFormData, invoiceStatus]);
 
   const handleAdd = (type) => {
     if (type === "doctor") setDoctors([...doctors, { name: "", fee: 0 }]);
@@ -46,10 +149,18 @@ const CreateInvoice = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'patientId') {
-      setPatientIdInput(value);
       const selected = patients.find(p => `${p.fullName} - ${p.hospitalPatientId}` === value);
       if (selected) {
-        setFormData(prev => ({ ...prev, patientId: selected.id, name: selected.fullName, age: selected.age }));
+        setPatientIdInput(selected.hospitalPatientId);
+        setSelectedPatientId(selected.id); // Store actual patient ID
+        setFormData(prev => ({ ...prev, patientId: selected.hospitalPatientId, name: selected.fullName, age: selected.age }));
+        // Fetch invoice form data for the selected patient
+        if (selected.id) {
+          dispatch(fetchInvoiceFormData(selected.id));
+        }
+      } else {
+        setPatientIdInput(value);
+        setSelectedPatientId(null);
       }
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
@@ -81,21 +192,102 @@ const CreateInvoice = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const data = {
-      ...formData,
-      age: parseInt(formData.age),
-      doctors,
-      tests,
-      medicines,
-      beds
+
+    // Validate patient ID
+    if (!selectedPatientId) {
+      Swal.fire({
+        icon: "error",
+        title: "Patient Required",
+        text: "Please select a patient from the suggestions.",
+      });
+      return;
+    }
+
+    // Separate pathology and radiology tests
+    const pathologyTests = tests
+      .filter(test => test.testType === "pathology" && test.testId)
+      .map(test => ({
+        testId: test.testId,
+        testName: test.name,
+        price: test.price
+      }));
+
+    const radiologyTests = tests
+      .filter(test => test.testType === "radiology" && test.testId)
+      .map(test => ({
+        testId: test.testId,
+        testName: test.name,
+        price: test.price
+      }));
+
+    // Map doctors to API format
+    const mappedDoctors = doctors
+      .filter(doc => doc.doctorId && doc.name)
+      .map(doc => ({
+        doctorId: doc.doctorId,
+        doctorName: doc.name,
+        fee: doc.fee || 0
+      }));
+
+    // Map medicines to API format
+    const mappedMedicines = medicines
+      .filter(med => med.medicineId && med.name)
+      .map(med => ({
+        medicineId: med.medicineId,
+        medicineName: med.name,
+        qty: med.qty || 0,
+        pricePerUnit: med.price || 0
+      }));
+
+    // Map beds/rooms to API format
+    const mappedRooms = beds
+      .filter(bed => bed.roomId && bed.days > 0)
+      .map(bed => ({
+        roomId: bed.roomId,
+        roomName: bed.type,
+        bedId: bed.bedId || null,
+        days: bed.days || 0,
+        pricePerDay: bed.price || 0
+      }));
+
+    // Prepare payload
+    const payload = {
+      patientId: selectedPatientId,
+      doctorId: null,
+      medicineId: null,
+      roomId: null,
+      admissionDate: formData.admission || null,
+      dischargeDate: formData.discharge || null,
+      totalAmount: null,
+      paymentMethod: formData.method?.toUpperCase() || "CASH",
+      paymentStatus: formData.status?.toUpperCase() || "PAID",
+      doctors: mappedDoctors,
+      medicines: mappedMedicines,
+      rooms: mappedRooms,
+      pathologyTests: pathologyTests,
+      radiologyTests: radiologyTests
     };
-    const patients = JSON.parse(localStorage.getItem("patients") || "[]");
-    patients.push(data);
-    localStorage.setItem("patients", JSON.stringify(patients));
-    localStorage.setItem("hospitalInvoice", JSON.stringify(data));
-    window.location.href = "invoice-table.html";
+
+    try {
+      await dispatch(createInvoice(payload)).unwrap();
+      Swal.fire({
+        icon: "success",
+        title: "Success",
+        text: "Invoice created successfully!",
+      }).then(() => {
+        // Optionally redirect or reset form
+        // window.location.href = "invoice-table.html";
+      });
+    } catch (error) {
+      const errorMessage = error?.message || error?.error || "Failed to create invoice";
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: errorMessage,
+      });
+    }
   };
 
   return (
