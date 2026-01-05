@@ -1,130 +1,75 @@
 import React, { useEffect, useState } from "react";
-
-const LS_KEY = "hms_path_reports";
-
-function uid() {
-  return "id_" + Math.random().toString(36).slice(2, 9);
-}
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import Swal from "sweetalert2";
+import {
+  fetchPathologies,
+  selectPathologies,
+  selectPathologiesStatus,
+  selectPathologiesError,
+  deletePathology,
+  selectStatusUpdateStatus,
+  updatePathologyStatus,
+} from "../../../../features/pathologySlice";
 
 export default function PathologyReportList() {
-  const [data, setData] = useState([]);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const data = useSelector(selectPathologies) || [];
+  const status = useSelector(selectPathologiesStatus);
+  const error = useSelector(selectPathologiesError);
+  const deleteStatus = useSelector(selectStatusUpdateStatus);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("");
 
-  const [showEdit, setShowEdit] = useState(false);
   const [showView, setShowView] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
   const [selectedReport, setSelectedReport] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
 
-  const [form, setForm] = useState({
-    id: "",
-    patient: "",
-    age: "",
-    phone: "",
-    doctor: "",
-    date: "",
-    time: "",
-    test: "",
-    report: "",
-    status: "Pending",
-  });
-
-  // Load from localStorage
-  function loadData() {
-    return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
-  }
-
-  // Save to localStorage
-  function saveData(list) {
-    localStorage.setItem(LS_KEY, JSON.stringify(list));
-  }
-
-  // Seed if empty
+  // Fetch pathologies on mount
   useEffect(() => {
-    const existing = loadData();
-    if (existing.length === 0) {
-      const sample = [
-        {
-          id: uid(),
-          patient: "Rahul Kumar",
-          age: 30,
-          phone: "9876543210",
-          doctor: "Dr. Mehta",
-          date: "2025-02-15",
-          time: "10:30 AM",
-          status: "Pending",
-          test: "Blood Count",
-          report: "HB Normal\nWBC Normal",
-        },
-        {
-          id: uid(),
-          patient: "Sneha Sharma",
-          age: 26,
-          phone: "9123456780",
-          doctor: "Dr. Kothari",
-          date: "2025-02-10",
-          time: "09:45 AM",
-          status: "Completed",
-          test: "LFT",
-          report: "ALT Slight High",
-        },
-      ];
-      saveData(sample);
-      setData(sample);
-    } else {
-      setData(existing);
-    }
-  }, []);
+    dispatch(fetchPathologies());
+  }, [dispatch]);
 
   // Filter data
   const filtered = data
-    .filter((r) => (filter ? r.status === filter : true))
+    .filter((r) => (filter ? r.reportStatus === filter : true))
     .filter((r) =>
       search
-        ? r.patient.toLowerCase().includes(search.toLowerCase()) ||
-          r.phone.includes(search) ||
-          r.test.toLowerCase().includes(search.toLowerCase())
+        ? r.patientName.toLowerCase().includes(search.toLowerCase()) ||
+          r.patientContact.includes(search) ||
+          r.sampleType.toLowerCase().includes(search.toLowerCase()) ||
+          r.testResults.some(test => test.testName.toLowerCase().includes(search.toLowerCase()))
         : true
     )
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+    .sort((a, b) => new Date(b.collectedOn) - new Date(a.collectedOn));
 
   // Badge
   const statusBadge = (s) => {
-    if (s === "Completed")
+    if (s === "COMPLETED")
       return <span className="badge text-bg-success">Completed</span>;
-    if (s === "Delivered")
+    if (s === "DELIVERED")
       return <span className="badge text-bg-secondary">Delivered</span>;
     return <span className="badge text-bg-warning">Pending</span>;
   };
 
-  // Save report
-  const saveReport = (e) => {
-    e.preventDefault();
-
-    if (!form.patient.trim()) return alert("Enter patient name");
-    if (form.age && Number(form.age) < 0) return alert("Age must be 0 or more");
-
-    const updated = loadData();
-    const obj = { ...form, id: form.id || uid() };
-
-    const idx = updated.findIndex((x) => x.id === obj.id);
-    if (idx >= 0) updated[idx] = obj;
-    else updated.push(obj);
-
-    saveData(updated);
-    setData(updated);
-    setShowEdit(false);
-  };
-
   // Delete report
   const confirmDelete = () => {
-    const updated = loadData().filter((x) => x.id !== deleteId);
-    saveData(updated);
-    setData(updated);
-    setShowDelete(false);
+    if (deleteId) {
+      dispatch(deletePathology(deleteId));
+      setShowDelete(false);
+      setDeleteId(null);
+    }
   };
+
+  // Change status
+  const handleStatusChange = (reportId, newStatus) => {
+    dispatch(updatePathologyStatus({ reportId, status: newStatus }));
+  };
+
 
   // PRINT REPORT
   const printReport = () => {
@@ -136,6 +81,10 @@ export default function PathologyReportList() {
       alert("Enable pop-ups to print");
       return;
     }
+
+    const testResultsHtml = selectedReport.testResults.map(test =>
+      `<tr><td>${test.testName}</td><td>${test.resultValue} ${test.units}</td><td>${test.referenceRange}</td></tr>`
+    ).join('');
 
     const printContent = `
       <html>
@@ -193,25 +142,19 @@ export default function PathologyReportList() {
       margin: 25px 0 10px 0;
     }
 
-    .info-grid {
-      display: grid;
-      grid-template-columns: 160px auto;
-      row-gap: 6px;
-      font-size: 14px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
     }
 
-    .info-label {
-      font-weight: bold;
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
     }
 
-    pre {
-      margin-top: 10px;
-      padding: 12px;
-      background: #f5f5f5;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      white-space: pre-wrap;
-      font-size: 14px;
+    th {
+      background-color: #f2f2f2;
     }
 
     @media print {
@@ -240,22 +183,36 @@ export default function PathologyReportList() {
      <h3>Pathology Report</h3>
     <div class="section-title">Patient Information</div>
 
-        
-        <p><b>Patient:</b> ${selectedReport.patient}</p>
-        <p><b>Age:</b> ${selectedReport.age}</p>
-        <p><b>Phone:</b> ${selectedReport.phone}</p>
-        <p><b>Doctor:</b> ${selectedReport.doctor}</p>
-        
-    <div class="section-title">Scan Details</div>
+        <p><b>Patient:</b> ${selectedReport.patientName}</p>
+        <p><b>Age:</b> ${selectedReport.patientAge}</p>
+        <p><b>Gender:</b> ${selectedReport.patientGender}</p>
+        <p><b>Email:</b> ${selectedReport.patientEmail}</p>
+        <p><b>Phone:</b> ${selectedReport.patientContact}</p>
+        <p><b>Hospital Patient ID:</b> ${selectedReport.hospitalPatientId}</p>
+        <p><b>Doctor:</b> ${selectedReport.doctorName}</p>
+        <p><b>Lab Technician:</b> ${selectedReport.labTechnicianName}</p>
 
-    <div class="dept">
-        <p><b>Date:</b> ${selectedReport.date}</p>
-        <p><b>Time:</b> ${selectedReport.time}</p>
-        <p><b>Test:</b> ${selectedReport.test}</p>
-        </div>
-        <hr>
-        <b>Findings:</b>
-        <pre>${selectedReport.report}</pre>
+    <div class="section-title">Sample Details</div>
+
+        <p><b>Date:</b> ${selectedReport.collectedOn}</p>
+        <p><b>Time:</b> ${selectedReport.collectionTime}</p>
+        <p><b>Sample Type:</b> ${selectedReport.sampleType}</p>
+        <p><b>Remarks:</b> ${selectedReport.remarks}</p>
+        <p><b>Total Cost:</b> ₹${selectedReport.totalCost}</p>
+
+    <div class="section-title">Test Results</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Test Name</th>
+          <th>Result</th>
+          <th>Reference Range</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${testResultsHtml}
+      </tbody>
+    </table>
       </body>
       </html>
     `;
@@ -302,9 +259,9 @@ export default function PathologyReportList() {
                 onChange={(e) => setFilter(e.target.value)}
               >
                 <option value="">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Completed">Completed</option>
-                <option value="Delivered">Delivered</option>
+                <option value="PENDING">Pending</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="DELIVERED">Delivered</option>
               </select>
             </div>
 
@@ -323,7 +280,7 @@ export default function PathologyReportList() {
                   <th>Phone</th>
                   <th>Doctor</th>
                   <th>Date</th>
-                  <th>Test</th>
+                  <th>Sample Type</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -340,13 +297,23 @@ export default function PathologyReportList() {
 
                 {filtered.map((r) => (
                   <tr className="small text-center" key={r.id}>
-                    <td>{r.patient}</td>
-                    <td>{r.age}</td>
-                    <td>{r.phone}</td>
-                    <td>{r.doctor}</td>
-                    <td>{r.date}</td>
-                    <td>{r.test}</td>
-                    <td>{statusBadge(r.status)}</td>
+                    <td>{r.patientName}</td>
+                    <td>{r.patientAge}</td>
+                    <td>{r.patientContact}</td>
+                    <td>{r.doctorName}</td>
+                    <td>{r.collectedOn}</td>
+                    <td>{r.sampleType}</td>
+                    <td>
+                      <select
+                        className="form-select form-select-sm"
+                        value={r.reportStatus}
+                        onChange={(e) => handleStatusChange(r.id, e.target.value)}
+                      >
+                        <option value="PENDING">Pending</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="DELIVERED">Delivered</option>
+                      </select>
+                    </td>
                     <td>
                       <div className="d-flex justify-content-center gap-1">
                         <button
@@ -361,12 +328,9 @@ export default function PathologyReportList() {
                         </button>
 
                         <button
-                          className="btn1 bg-warning me-1 btn-sm"
+                          className="btn1 bg-warning me-1"
                           data-tooltip="Edit"
-                          onClick={() => {
-                            setForm(r);
-                            setShowEdit(true);
-                          }}
+                          onClick={() => navigate(`/dashboard/edit-pathology-report/${r.id}`)}
                         >
                           <i className="bi bi-pencil"></i>
                         </button>
@@ -411,37 +375,51 @@ export default function PathologyReportList() {
               </div>
 
               <div className="modal-body small">
-                <p>
-                  <b>Patient:</b> {selectedReport.patient}
-                </p>
-                <p>
-                  <b>Age:</b> {selectedReport.age}
-                </p>
-                <p>
-                  <b>Phone:</b> {selectedReport.phone}
-                </p>
-                <p>
-                  <b>Doctor:</b> {selectedReport.doctor}
-                </p>
-                <p>
-                  <b>Date:</b> {selectedReport.date}
-                </p>
-                <p>
-                  <b>Time:</b> {selectedReport.time}
-                </p>
-                <p>
-                  <b>Test:</b> {selectedReport.test}
-                </p>
-
-                <p>
-                  <b>Status:</b> {statusBadge(selectedReport.status)}
-                </p>
+                <div className="row">
+                  <div className="col-md-6">
+                    <p><b>Patient:</b> {selectedReport.patientName}</p>
+                    <p><b>Age:</b> {selectedReport.patientAge}</p>
+                    <p><b>Gender:</b> {selectedReport.patientGender}</p>
+                    <p><b>Email:</b> {selectedReport.patientEmail}</p>
+                    <p><b>Phone:</b> {selectedReport.patientContact}</p>
+                    <p><b>Hospital Patient ID:</b> {selectedReport.hospitalPatientId}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <p><b>Doctor:</b> {selectedReport.doctorName}</p>
+                    <p><b>Lab Technician:</b> {selectedReport.labTechnicianName}</p>
+                    <p><b>Date:</b> {selectedReport.collectedOn}</p>
+                    <p><b>Time:</b> {selectedReport.collectionTime}</p>
+                    <p><b>Sample Type:</b> {selectedReport.sampleType}</p>
+                    <p><b>Status:</b> {statusBadge(selectedReport.reportStatus)}</p>
+                  </div>
+                </div>
+                <p><b>Remarks:</b> {selectedReport.remarks}</p>
+                <p><b>Total Cost:</b> ₹{selectedReport.totalCost}</p>
 
                 <hr />
-                <b>Findings:</b>
-                <pre style={{ whiteSpace: "pre-wrap" }}>
-                  {selectedReport.report}
-                </pre>
+                <b>Test Results:</b>
+                <table className="table table-sm mt-2">
+                  <thead>
+                    <tr>
+                      <th>Test Name</th>
+                      <th>Result</th>
+                      <th>Units</th>
+                      <th>Reference Range</th>
+                      <th>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedReport.testResults.map((test, idx) => (
+                      <tr key={idx}>
+                        <td>{test.testName}</td>
+                        <td>{test.resultValue}</td>
+                        <td>{test.units}</td>
+                        <td>{test.referenceRange}</td>
+                        <td>₹{test.cost}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               <div className="modal-footer">
@@ -497,6 +475,7 @@ export default function PathologyReportList() {
           </div>
         </div>
       )}
+
     </>
   );
 }

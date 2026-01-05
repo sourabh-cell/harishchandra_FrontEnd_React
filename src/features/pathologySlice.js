@@ -35,6 +35,32 @@ export const createPathology = createAsyncThunk(
   }
 );
 
+// Fetch all pathology reports (GET /pathology/all)
+export const fetchPathologies = createAsyncThunk(
+  "pathology/fetchPathologies",
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = getToken();
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await axios.get(`${API_BASE_URL}/pathology/all`, { headers });
+      const data = res.data?.data || res.data;
+      return data;
+    } catch (err) {
+      const payloadErr = err.response
+        ? {
+            message:
+              err.response.data?.message || err.response.data || err.message,
+            status: err.response.status,
+            url: err.config?.url,
+          }
+        : { message: err.message || "Network error", code: err.code };
+      return rejectWithValue(payloadErr);
+    }
+  }
+);
+
 // Fetch lab technicians (GET /laboratorists/pathlab-technicians)
 export const fetchLabTechnicians = createAsyncThunk(
   "pathology/fetchLabTechnicians",
@@ -65,31 +91,6 @@ export const fetchLabTechnicians = createAsyncThunk(
   }
 );
 
-// Fetch all pathology reports (GET /pathology/all)
-export const fetchPathologies = createAsyncThunk(
-  "pathology/fetchPathologies",
-  async (_, { rejectWithValue }) => {
-    try {
-      const token = getToken();
-      const headers = { "Content-Type": "application/json" };
-      if (token) headers.Authorization = `Bearer ${token}`;
-
-      const res = await axios.get(`${API_BASE_URL}/pathology/all`, { headers });
-      const data = res.data?.data || res.data;
-      return data;
-    } catch (err) {
-      const payloadErr = err.response
-        ? {
-            message:
-              err.response.data?.message || err.response.data || err.message,
-            status: err.response.status,
-            url: err.config?.url,
-          }
-        : { message: err.message || "Network error", code: err.code };
-      return rejectWithValue(payloadErr);
-    }
-  }
-);
 
 // Update pathology report (PUT /pathology/update/{reportId})
 export const updatePathology = createAsyncThunk(
@@ -259,6 +260,7 @@ const pathologySlice = createSlice({
         state.createError = action.payload || action.error.message;
       });
 
+
     // fetch pathologies reducers
     builder
       .addCase(fetchPathologies.pending, (state) => {
@@ -352,7 +354,7 @@ const pathologySlice = createSlice({
             (p) => String(p.id || p._id) === String(reportId)
           );
           if (idx !== -1) {
-            state.pathologies[idx].status = status;
+            state.pathologies[idx].reportStatus = status;
           }
         }
       })
@@ -402,6 +404,7 @@ export const selectFetchPathologyStatus = (state) =>
   state.pathology?.fetchPathologyStatus || "idle";
 export const selectFetchPathologyError = (state) =>
   state.pathology?.fetchPathologyError || null;
+
 
 // selectors for fetched pathologies
 export const selectPathologies = (state) => state.pathology?.pathologies || [];

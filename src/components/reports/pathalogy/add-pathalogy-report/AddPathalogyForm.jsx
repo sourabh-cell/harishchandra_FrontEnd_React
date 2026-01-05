@@ -1,15 +1,17 @@
 import React, { useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import {
   createPathology,
   resetCreateState,
   selectCreatePathologyStatus,
   selectCreatePathologyError,
+  fetchPathologies,
 } from "../../../../features/pathologySlice";
 import {
   fetchLabTechnicians,
-  selectLabTechnicians,
+  selectLabTechnicians,  
   selectLabTechniciansStatus,
 } from "../../../../features/pathologySlice";
 import {
@@ -23,6 +25,8 @@ import {
 
 export default function AddPathalogyForm() {
   const THEME = "#01C0C8";
+
+  const today = new Date().toISOString().split('T')[0];
 
   const TEST_CATALOG = {
     Hemoglobin: {
@@ -59,12 +63,16 @@ export default function AddPathalogyForm() {
     collectedTime: "",
   });
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const patients = useSelector(selectPatients) || [];
   const patientsStatus = useSelector(selectPatientsStatus);
 
-  const [patientQuery, setPatientQuery] = useState("");
-  const [patientSuggestions, setPatientSuggestions] = useState([]);
-  const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
+  const [patientNameQuery, setPatientNameQuery] = useState("");
+  const [patientNameSuggestions, setPatientNameSuggestions] = useState([]);
+  const [showPatientNameSuggestions, setShowPatientNameSuggestions] = useState(false);
+  const [patientIdQuery, setPatientIdQuery] = useState("");
+  const [patientIdSuggestions, setPatientIdSuggestions] = useState([]);
+  const [showPatientIdSuggestions, setShowPatientIdSuggestions] = useState(false);
   const [doctorQuery, setDoctorQuery] = useState("");
   const [doctorSuggestions, setDoctorSuggestions] = useState([]);
   const [showDoctorSuggestions, setShowDoctorSuggestions] = useState(false);
@@ -89,13 +97,17 @@ export default function AddPathalogyForm() {
     if (id === "contact" && (/[^0-9]/.test(value) || value.length > 10)) return;
     if (id === "patientHospitalId" && /[^a-zA-Z0-9-]/.test(value)) return;
     setForm((prev) => ({ ...prev, [id]: value }));
-    if (id === "patientName" || id === "patientHospitalId") {
+    if (id === "patientName") {
       const q = value.trim().toLowerCase();
-      setPatientQuery(q);
-      setShowPatientSuggestions(!!q);
+      setPatientNameQuery(q);
+      setShowPatientNameSuggestions(!!q);
+    }
+    if (id === "patientHospitalId") {
+      const q = value.trim().toLowerCase();
+      setPatientIdQuery(q);
+      setShowPatientIdSuggestions(!!q);
       // clear any previously bound internal id when user types a new hospital id
-      if (id === "patientHospitalId")
-        setForm((prev) => ({ ...prev, patientInternalId: "" }));
+      setForm((prev) => ({ ...prev, patientInternalId: "" }));
     }
     if (id === "doctor") {
       const q = value.trim().toLowerCase();
@@ -135,10 +147,10 @@ export default function AddPathalogyForm() {
     if (labTechniciansStatus === "idle") dispatch(fetchLabTechnicians());
   }, [dispatch, labTechniciansStatus]);
 
-  // Update suggestions when patientQuery or patients change
+  // Update patient name suggestions when patientNameQuery or patients change
   React.useEffect(() => {
-    if (!patientQuery) return setPatientSuggestions([]);
-    const q = patientQuery.toLowerCase();
+    if (!patientNameQuery) return setPatientNameSuggestions([]);
+    const q = patientNameQuery.toLowerCase();
     const matches = (patients || [])
       .map((p) => ({
         raw: p,
@@ -148,12 +160,30 @@ export default function AddPathalogyForm() {
       }))
       .filter(
         (p) =>
-          (p.id || "").toLowerCase().includes(q) ||
           (p.name || "").toLowerCase().includes(q)
       )
       .slice(0, 10);
-    setPatientSuggestions(matches);
-  }, [patientQuery, patients]);
+    setPatientNameSuggestions(matches);
+  }, [patientNameQuery, patients]);
+
+  // Update patient ID suggestions when patientIdQuery or patients change
+  React.useEffect(() => {
+    if (!patientIdQuery) return setPatientIdSuggestions([]);
+    const q = patientIdQuery.toLowerCase();
+    const matches = (patients || [])
+      .map((p) => ({
+        raw: p,
+        id:
+          p.patient_hospital_id || p.hospitalId || p.hospitalID || p.code || "",
+        name: p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+      }))
+      .filter(
+        (p) =>
+          (p.id || "").toLowerCase().includes(q)
+      )
+      .slice(0, 10);
+    setPatientIdSuggestions(matches);
+  }, [patientIdQuery, patients]);
 
   // Update doctor suggestions when doctorQuery or fetched doctorNameIds change
   React.useEffect(() => {
@@ -286,9 +316,12 @@ export default function AddPathalogyForm() {
       contact: contactVal || prev.contact,
       email: raw.email || prev.email,
     }));
-    setShowPatientSuggestions(false);
-    setPatientSuggestions([]);
-    setPatientQuery("");
+    setShowPatientNameSuggestions(false);
+    setPatientNameSuggestions([]);
+    setPatientNameQuery("");
+    setShowPatientIdSuggestions(false);
+    setPatientIdSuggestions([]);
+    setPatientIdQuery("");
   };
 
   const handleSelectDoctor = (d) => {
@@ -465,6 +498,7 @@ export default function AddPathalogyForm() {
           timer: 1500,
           showConfirmButton: false,
         });
+        dispatch(fetchPathologies());
         // reset form
         setForm({
           patientName: "",
@@ -479,7 +513,7 @@ export default function AddPathalogyForm() {
           labTechnicianName: "",
           email: "",
           sampleType: "Blood",
-          collectedOn: "",
+          collectedOn: today,
           collectedTime: "",
         });
         setTests([{ name: "", result: "", units: "", range: "", cost: 0 }]);
@@ -525,7 +559,7 @@ export default function AddPathalogyForm() {
             <div className="mb-3">
               <div className="section-title">Patient Information</div>
               <div className="row g-3">
-                <div className="col-md-4">
+                <div className="col-md-4" style={{ position: "relative" }}>
                   <label>Patient Name</label>
                   <input
                     id="patientName"
@@ -535,7 +569,25 @@ export default function AddPathalogyForm() {
                     value={form.patientName}
                     onChange={handleFormChange}
                     placeholder="e.g. Rahul Sharma"
+                    autoComplete="off"
                   />
+                  {showPatientNameSuggestions && patientNameSuggestions.length > 0 && (
+                    <div
+                      className="list-group position-absolute"
+                      style={{ zIndex: 999, width: '100%' }}
+                    >
+                      {patientNameSuggestions.map((ps, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="list-group-item list-group-item-action"
+                          onClick={() => handleSelectPatient(ps)}
+                        >
+                          <strong>{ps.name}</strong> — {ps.raw?.patient_hospital_id || ps.id || "-"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="col-md-2">
                   <label>Age</label>
@@ -588,12 +640,12 @@ export default function AddPathalogyForm() {
                     value={form.patientHospitalId}
                     onChange={handleFormChange}
                   />
-                  {showPatientSuggestions && patientSuggestions.length > 0 && (
+                  {showPatientIdSuggestions && patientIdSuggestions.length > 0 && (
                     <div
                       className="list-group position-absolute"
                       style={{ zIndex: 999 }}
                     >
-                      {patientSuggestions.map((ps, idx) => (
+                      {patientIdSuggestions.map((ps, idx) => (
                         <button
                           key={idx}
                           type="button"
@@ -702,6 +754,8 @@ export default function AddPathalogyForm() {
                         className="form-control"
                         value={form.collectedOn}
                         onChange={handleFormChange}
+                        min={today}
+                        max={today}
                       />
                     </div>
                     <div className="col-md-6">

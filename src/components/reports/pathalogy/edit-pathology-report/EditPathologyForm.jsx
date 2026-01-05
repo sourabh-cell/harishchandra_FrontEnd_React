@@ -10,6 +10,7 @@ import {
 } from "../../../../features/pathologySlice";
 import { updatePathology } from "../../../../features/pathologySlice";
 import { removePathologyFromCache } from "../../../../features/pathologySlice";
+import { fetchPathologies } from "../../../../features/pathologySlice";
 import {
   fetchLabTechnicians,
   selectLabTechnicians,
@@ -61,6 +62,7 @@ export default function EditPathologyForm() {
     sampleType: "Blood",
     collectedOn: "",
     collectedTime: "",
+    reportStatus: "",
   });
   const dispatch = useDispatch();
   const { id: reportId } = useParams();
@@ -161,12 +163,12 @@ export default function EditPathologyForm() {
         // patient hospital id: try multiple common keys and nested locations
         const patientHospitalId =
           rec.patientHospitalId ||
+          rec.hospitalPatientId ||
           rec.patient?.patient_hospital_id ||
           rec.patient?.hospitalId ||
           rec.patient_hospital_id ||
           rec.patient?.patientHospitalId ||
-          rec.patient?.patientId ||
-          rec.patientId ||
+          rec.patient?.hospitalPatientId ||
           rec.patient?.id ||
           "";
 
@@ -358,6 +360,7 @@ export default function EditPathologyForm() {
           sampleType: rec.sampleType || rec.sample_type || prev.sampleType,
           collectedOn: collectedOn || prev.collectedOn,
           collectedTime: collectedTime || prev.collectedTime,
+          reportStatus: rec.reportStatus || rec.status || "PENDING",
         }));
         if (mappedTests.length) setTests(mappedTests);
         setRemarks(remarksVal);
@@ -702,6 +705,7 @@ export default function EditPathologyForm() {
       collectionTime: collectionTime,
       remarks: remarks || "",
       totalCost: parseFloat(Number(totalAmount).toFixed(2)) || 0,
+      reportStatus: form.reportStatus || "PENDING",
       testResults: tests.map((t) => ({
         testName: t.name || "",
         resultValue: t.result || "",
@@ -740,9 +744,12 @@ export default function EditPathologyForm() {
           sampleType: "Blood",
           collectedOn: "",
           collectedTime: "",
+          reportStatus: "",
         });
         setTests([{ name: "", result: "", units: "", range: "", cost: 0 }]);
         setRemarks("");
+        // refetch pathologies to update the list
+        dispatch(fetchPathologies());
         // hide this form and navigate back to manage list
         setIsVisible(false);
         navigate("/dashboard/manage-pathology-reports");
@@ -1032,6 +1039,19 @@ export default function EditPathologyForm() {
                           ))}
                         </div>
                       )}
+                    </div>
+                    <div className="col-md-6">
+                      <label>Report Status</label>
+                      <select
+                        id="reportStatus"
+                        className="form-select"
+                        value={form.reportStatus}
+                        onChange={handleFormChange}
+                      >
+                        <option value="PENDING">Pending</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="DELIVERED">Delivered</option>
+                      </select>
                     </div>
                   </div>
                 </div>

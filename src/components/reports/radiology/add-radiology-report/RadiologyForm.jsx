@@ -29,7 +29,6 @@ export default function RadiologyForm() {
     scanType: "",
     reportDate: "",
     imagingTime: "",
-    reportedBy: "",
     // new fields for payload
     patientId: "",
     patientHospitalId: "",
@@ -46,6 +45,7 @@ export default function RadiologyForm() {
   const [patientQuery, setPatientQuery] = useState("");
   const [patientSuggestions, setPatientSuggestions] = useState([]);
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
+  const [activePatientField, setActivePatientField] = useState(null); // Track which field is active
   const [doctorQuery, setDoctorQuery] = useState("");
   const [doctorSuggestions, setDoctorSuggestions] = useState([]);
   const [showDoctorSuggestions, setShowDoctorSuggestions] = useState(false);
@@ -102,15 +102,16 @@ export default function RadiologyForm() {
 
   const handleFormChange = (e) => {
     const { id, value } = e.target;
+    if (id === "patientName" || id === "patientHospitalId") {
+      const q = value.trim().toLowerCase();
+      setPatientQuery(q);
+      setShowPatientSuggestions(!!q);
+      setActivePatientField(id); // Track which field is active
+      // clear any previously bound internal id when user types a new hospital id
+      if (id === "patientHospitalId")
+        setForm((prev) => ({ ...prev, patientId: "" }));
+    }
     setForm((prev) => ({ ...prev, [id]: value }));
-  };
-
-  const handlePatientNameChange = (e) => {
-    const v = e.target.value;
-    setForm((prev) => ({ ...prev, patientName: v }));
-    const q = v.trim().toLowerCase();
-    setPatientQuery(q);
-    setShowPatientSuggestions(!!q);
   };
 
   const validateAll = () => {
@@ -147,11 +148,6 @@ export default function RadiologyForm() {
   // Load patients for suggestions
   useEffect(() => {
     if (patientsStatus === "idle") dispatch(fetchPatients());
-    // also ensure doctors name-id list is loaded for doctor suggestions
-    // fetchDoctorNameIds will populate selector used below
-    dispatch(fetchDoctorNameIds());
-    // fetch radiology technicians for searchable technician field
-    dispatch(fetchRadiologyTechnicians());
   }, [dispatch, patientsStatus]);
 
   // Update patient suggestions when query or patients change
@@ -165,7 +161,8 @@ export default function RadiologyForm() {
           p.patient_hospital_id ||
           p.hospitalId ||
           p.hospitalID ||
-          String(p.id || p._id || ""),
+          p.code ||
+          "",
         name: p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim(),
       }))
       .filter(
@@ -180,7 +177,12 @@ export default function RadiologyForm() {
   // Update doctor suggestions when query or doctor list changes
   const doctorNameIds = useSelector(selectDoctorNameIds) || [];
   const doctorNameIdsStatus = useSelector(selectDoctorNameIdsStatus);
-
+  
+  // Load doctor name-ids for doctor suggestions
+  useEffect(() => {
+    if (doctorNameIdsStatus === "idle") dispatch(fetchDoctorNameIds());
+  }, [dispatch, doctorNameIdsStatus]);
+  
   useEffect(() => {
     if (!doctorQuery) return setDoctorSuggestions([]);
     const q = doctorQuery.toLowerCase();
@@ -202,7 +204,12 @@ export default function RadiologyForm() {
   // technicians selectors
   const technicians = useSelector(selectRadiologyTechnicians) || [];
   const techniciansStatus = useSelector(selectRadiologyTechniciansStatus);
-
+  
+  // Load radiology technicians for suggestions
+  useEffect(() => {
+    if (techniciansStatus === "idle") dispatch(fetchRadiologyTechnicians());
+  }, [dispatch, techniciansStatus]);
+  
   // Update technician suggestions when query or technicians list changes
   useEffect(() => {
     if (!technicianQuery) return setTechnicianSuggestions([]);
@@ -218,7 +225,7 @@ export default function RadiologyForm() {
           (t.name || "").toLowerCase().includes(q) ||
           (t.id || "").toLowerCase().includes(q)
       )
-      .slice(0, 10);
+      .slice(0, 20);
     setTechnicianSuggestions(matches);
   }, [technicianQuery, technicians]);
 
@@ -228,6 +235,21 @@ export default function RadiologyForm() {
     const q = String(v).trim().toLowerCase();
     setTechnicianQuery(q);
     setShowTechnicianSuggestions(!!q);
+  };
+
+  const handleTechnicianFocus = () => {
+    if ((technicians || []).length > 0) {
+      const top = (technicians || [])
+        .slice(0, 10)
+        .map((t) => ({ id: String(t.id || ""), name: t.name || "" }));
+      setTechnicianSuggestions(top);
+      setShowTechnicianSuggestions(true);
+    } else if (techniciansStatus === "loading") {
+      setShowTechnicianSuggestions(true);
+    } else {
+      if (techniciansStatus === "idle") dispatch(fetchRadiologyTechnicians());
+      setShowTechnicianSuggestions(true);
+    }
   };
 
   const handleSelectTechnician = (t) => {
@@ -250,6 +272,21 @@ export default function RadiologyForm() {
     const q = String(v).trim().toLowerCase();
     setDoctorQuery(q);
     setShowDoctorSuggestions(!!q);
+  };
+
+  const handleDoctorFocus = () => {
+    if ((doctorNameIds || []).length > 0) {
+      const top = (doctorNameIds || [])
+        .slice(0, 10)
+        .map((d) => ({ id: String(d.id || ""), name: d.name || "" }));
+      setDoctorSuggestions(top);
+      setShowDoctorSuggestions(true);
+    } else if (doctorNameIdsStatus === "loading") {
+      setShowDoctorSuggestions(true);
+    } else {
+      if (doctorNameIdsStatus === "idle") dispatch(fetchDoctorNameIds());
+      setShowDoctorSuggestions(true);
+    }
   };
 
   const handleSelectDoctor = (d) => {
@@ -418,18 +455,24 @@ export default function RadiologyForm() {
   };
 
   return (
-    <>
-      {" "}
-      {/* Alignment & Table Fix CSS */}
+    <div className="container p-0 m-0">
       <style>{`
+        body { font-family: Inter, sans-serif; background:#f2fbfc; }
+        .card-main { background:white; border-radius:12px 12px 0 0; margin:0 auto; padding:0; box-shadow:0 4px 12px rgba(0,0,0,0.05); overflow:hidden; }
+        .card-header { background:#01C0C8; color:white; text-align:center; padding:12px 0; font-size:22px; font-weight:600; border-radius:12px 12px 0 0; }
+        .card-body { padding:20px; }
+        .section-title { background:#01C0C8; color:white; font-weight:600; margin-bottom:10px; font-size:18px; padding:6px 10px; border-radius:4px; }
+        .btn-theme { background:#01C0C8; color:white; border:none; }
+        .btn-outline-theme { border:1px solid #01C0C8; color:#01C0C8; background:white; }
+        .table thead { background:#f6ffff; }
+        .no-print { display:inline; }
+        .table td, .table th { vertical-align: middle !important; }
+        .form-control-sm { padding:3px 6px; font-size:0.875rem; }
+        @media print { .no-print { display:none !important; } .card-main { box-shadow:none; border-radius:0; } }
         #testsTable thead th {
           background: #01C0C8 !important;
           color: #ffffff !important;
-          border-color: #01C0C8 !important;
           text-align: center;
-        }
-        #testsTable, #testsTable th, #testsTable td {
-          border-color: #01C0C8 !important;
         }
         #testsTable td, #testsTable th {
           vertical-align: middle;
@@ -438,7 +481,7 @@ export default function RadiologyForm() {
         #testsTable td:nth-child(2) { width: 40%; }
         #testsTable td:nth-child(3) { width: 15%; }
         #testsTable td:nth-child(4) { width: 13%; text-align: center; }
- 
+
         input.form-control, select.form-select, textarea.form-control {
           height: 38px !important;
           padding: 6px 10px !important;
@@ -449,38 +492,32 @@ export default function RadiologyForm() {
         /* make per-row file input compact */
         #testsTable input[type="file"] { padding: 4px 6px; }
       `}</style>
-      <div className="container-fluid">
-        {/* Header */}
-        <div
-          className="p-3 mb-3 text-white text-center"
-          style={{ background: "#01C0C8", margin: "-32px" }}
-        >
-          <h3 className="mb-0">HMS Radiology & Diagnostics</h3>
+
+      <div className="card-main">
+        <div className="card-header">
+          <i className="fas fa-x-ray me-2"></i> HMS Radiology & Diagnostics
         </div>
 
-        {/* Patient Information */}
-        <div className="full-width-card card mb-3">
-          <div className="p-2 text-white" style={{ background: "#01C0C8" }}>
-            <h5 className="mb-0">Patient Information</h5>
-          </div>
-
-          <div className="card-body">
+        <div className="card-body">
+          {/* Patient Information */}
+          <div className="mb-3">
+            <div className="section-title">Patient Information</div>
             <div className="row g-3">
               <div className="col-md-4" style={{ position: "relative" }}>
-                <label className="form-label">Patient Name *</label>
+                <label>Patient Name *</label>
                 <input
                   id="patientName"
                   className="form-control"
                   value={form.patientName}
-                  onChange={handlePatientNameChange}
+                  onChange={handleFormChange}
                   placeholder="e.g. Rahul Sharma"
                   autoComplete="off"
                   required
                 />
-                {showPatientSuggestions && patientSuggestions.length > 0 && (
+                {showPatientSuggestions && patientSuggestions.length > 0 && activePatientField === 'patientName' && (
                   <div
                     className="list-group position-absolute"
-                    style={{ zIndex: 999 }}
+                    style={{ zIndex: 999, width: '100%' }}
                   >
                     {patientSuggestions.map((ps, idx) => (
                       <button
@@ -489,7 +526,7 @@ export default function RadiologyForm() {
                         className="list-group-item list-group-item-action"
                         onClick={() => handleSelectPatient(ps)}
                       >
-                        <strong>{ps.id || "-"}</strong> — {ps.name}
+                        <strong>{ps.name}</strong> — {ps.raw?.patient_hospital_id || ps.id || "-"}
                       </button>
                     ))}
                   </div>
@@ -497,7 +534,7 @@ export default function RadiologyForm() {
               </div>
 
               <div className="col-md-2">
-                <label className="form-label">Age *</label>
+                <label>Age *</label>
                 <input
                   id="age"
                   type="number"
@@ -511,7 +548,7 @@ export default function RadiologyForm() {
               </div>
 
               <div className="col-md-2">
-                <label className="form-label">Gender *</label>
+                <label>Gender *</label>
                 <select
                   id="gender"
                   className="form-select"
@@ -527,7 +564,7 @@ export default function RadiologyForm() {
               </div>
 
               <div className="col-md-4">
-                <label className="form-label">Contact *</label>
+                <label>Contact *</label>
                 <input
                   id="contact"
                   className="form-control"
@@ -536,8 +573,8 @@ export default function RadiologyForm() {
                   required
                 />
               </div>
-              <div className="col-md-3">
-                <label className="form-label">Patient Hospital ID *</label>
+              <div className="col-md-6" style={{ position: "relative" }}>
+                <label>Patient Hospital ID *</label>
                 <input
                   id="patientHospitalId"
                   className="form-control"
@@ -546,23 +583,63 @@ export default function RadiologyForm() {
                   placeholder="e.g. HOSP123"
                   required
                 />
+                {showPatientSuggestions && patientSuggestions.length > 0 && activePatientField === 'patientHospitalId' && (
+                  <div
+                    className="list-group position-absolute"
+                    style={{ zIndex: 999 }}
+                  >
+                    {patientSuggestions.map((ps, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className="list-group-item list-group-item-action"
+                        onClick={() => handleSelectPatient(ps)}
+                      >
+                        <strong>{ps.raw?.patient_hospital_id || ps.id || "-"}</strong> — {ps.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="col-md-3" style={{ position: "relative" }}>
-                <label className="form-label">Doctor ID *</label>
+                <label>Doctor ID *</label>
                 <input
                   id="doctorName"
                   className="form-control"
                   value={form.doctorName}
                   onChange={handleDoctorQueryChange}
+                  onFocus={handleDoctorFocus}
                   placeholder="Search doctor by name"
                   autoComplete="off"
                   required
                 />
-                {showDoctorSuggestions && doctorSuggestions.length > 0 && (
+                {showDoctorSuggestions && (
                   <div
                     className="list-group position-absolute"
                     style={{ zIndex: 999 }}
                   >
+                    {doctorNameIdsStatus === "loading" && (
+                      <div className="list-group-item">Loading...</div>
+                    )}
+                    {doctorNameIdsStatus === "failed" && (
+                      <button
+                        type="button"
+                        className="list-group-item list-group-item-action text-danger"
+                        onClick={() => dispatch(fetchDoctorNameIds())}
+                      >
+                        Failed to load doctors — Retry
+                      </button>
+                    )}
+                    {doctorNameIdsStatus !== "loading" &&
+                      doctorNameIdsStatus !== "failed" &&
+                      doctorSuggestions.length === 0 && (
+                        <button
+                          type="button"
+                          className="list-group-item list-group-item-action disabled"
+                        >
+                          No matches
+                        </button>
+                      )}
                     {doctorSuggestions.map((ds, idx) => (
                       <button
                         key={idx}
@@ -578,21 +655,15 @@ export default function RadiologyForm() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Radiology + Billing */}
-        <div className="row">
-          {/* Radiology Details */}
-          <div className="col-md-6">
-            <div className="card mb-3">
-              <div className="p-2 text-white" style={{ background: "#01C0C8" }}>
-                <h5 className="mb-0">Radiology Details</h5>
-              </div>
-
-              <div className="card-body">
+          {/* Radiology + Billing */}
+          <div className="mb-3 row">
+            <div className="col-md-6">
+              <div className="mb-3">
+                <div className="section-title">Radiology Details</div>
                 <div className="row g-3">
                   <div className="col-md-6">
-                    <label className="form-label">Scan Type *</label>
+                    <label>Scan Type *</label>
                     <select
                       id="scanType"
                       className="form-select"
@@ -609,7 +680,7 @@ export default function RadiologyForm() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Report Date *</label>
+                    <label>Report Date *</label>
                     <input
                       id="reportDate"
                       type="date"
@@ -621,7 +692,7 @@ export default function RadiologyForm() {
                   </div>
 
                   <div className="col-md-6">
-                    <label className="form-label">Imaging Time *</label>
+                    <label>Imaging Time *</label>
                     <input
                       id="imagingTime"
                       type="time"
@@ -632,48 +703,66 @@ export default function RadiologyForm() {
                     />
                   </div>
 
-                  <div className="col-md-6">
-                    <label className="form-label">Reported By *</label>
-                    <input
-                      id="reportedBy"
-                      className="form-control"
-                      value={form.reportedBy}
-                      onChange={handleFormChange}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-3" style={{ position: "relative" }}>
-                    <label className="form-label">Radiology Technician *</label>
+                  <div className="col-md-6" style={{ position: "relative" }}>
+                    <label>Radiology Technician *</label>
                     <input
                       id="radiologyPerformedByName"
                       className="form-control"
                       value={form.radiologyPerformedByName}
                       onChange={handleTechnicianQueryChange}
+                      onFocus={handleTechnicianFocus}
                       placeholder="Search technician by name"
                       autoComplete="off"
                       required
                     />
-                    {showTechnicianSuggestions &&
-                      technicianSuggestions.length > 0 && (
-                        <div
-                          className="list-group position-absolute"
-                          style={{ zIndex: 999 }}
-                        >
-                          {technicianSuggestions.map((ts, idx) => (
+                    {showTechnicianSuggestions && (
+                      <div
+                        className="list-group position-absolute"
+                        style={{ zIndex: 999 }}
+                      >
+                        {techniciansStatus === "loading" && (
+                          <div className="list-group-item">Loading...</div>
+                        )}
+                        {techniciansStatus === "failed" && (
+                          <button
+                            type="button"
+                            className="list-group-item list-group-item-action text-danger"
+                            onClick={() => dispatch(fetchRadiologyTechnicians())}
+                          >
+                            Failed to load technicians — Retry
+                          </button>
+                        )}
+                        {techniciansStatus !== "loading" &&
+                          techniciansStatus !== "failed" &&
+                          technicianSuggestions.length === 0 && (
                             <button
-                              key={idx}
                               type="button"
-                              className="list-group-item list-group-item-action"
-                              onClick={() => handleSelectTechnician(ts)}
+                              className="list-group-item list-group-item-action disabled"
                             >
-                              {ts.name || ts.id || "-"}
+                              No matches
                             </button>
-                          ))}
-                        </div>
-                      )}
+                          )}
+                        {technicianSuggestions.map((ts, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            className="list-group-item list-group-item-action"
+                            onClick={() => handleSelectTechnician(ts)}
+                          >
+                            {ts.name}{" "}
+                            {ts.id ? (
+                              <small className="text-muted">
+                                {" "}
+                                — #{ts.id}
+                              </small>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="col-md-3">
-                    <label className="form-label">Status *</label>
+                  <div className="col-md-6">
+                    <label>Status *</label>
                     <select
                       id="status"
                       className="form-select"
@@ -688,39 +777,27 @@ export default function RadiologyForm() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Billing Summary */}
-          <div className="col-md-6">
-            <div className="card mb-3">
-              <div className="p-2 text-white" style={{ background: "#01C0C8" }}>
-                <h5 className="mb-0">Billing Summary</h5>
-              </div>
-              <div className="card-body" style={{ minHeight: "206px" }}>
-                <div className="border rounded p-3 d-flex justify-content-between">
+            <div className="col-md-6">
+              <div className="mb-3">
+                <div className="section-title">Billing Summary</div>
+                <div className="border p-3 rounded d-flex justify-content-between">
                   <div>
-                    <div>Scans Count</div>
-                    <h4>{tests.length}</h4>
+                    <strong>Scans Count:</strong> {tests.length}
                   </div>
                   <div>
-                    <div>Total (₹)</div>
-                    <h4>{totalAmount.toFixed(2)}</h4>
+                    <strong>Total (₹):</strong> {totalAmount.toFixed(2)}
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Findings Table */}
-        <div className="full-width-card card mb-3">
-          <div className="p-2 text-white" style={{ background: "#01C0C8" }}>
-            <h5 className="mb-0">Radiology Findings</h5>
-          </div>
-
-          <div className="card-body">
+          {/* Findings Table */}
+          <div className="mb-3">
+            <div className="section-title">Radiology Findings</div>
             <div className="table-responsive">
-              <table className="table table-bordered" id="testsTable">
+              <table className="table table-bordered align-middle" id="testsTable">
                 <thead>
                   <tr>
                     <th>Scan / Procedure</th>
@@ -737,7 +814,7 @@ export default function RadiologyForm() {
                       <td>
                         <input
                           list="testList"
-                          className="form-control"
+                          className="form-control form-control-sm"
                           value={row.name}
                           onChange={(e) =>
                             handleTestChange(i, "name", e.target.value)
@@ -747,7 +824,7 @@ export default function RadiologyForm() {
 
                       <td>
                         <input
-                          className="form-control"
+                          className="form-control form-control-sm"
                           value={row.findings}
                           onChange={(e) =>
                             handleTestChange(i, "findings", e.target.value)
@@ -756,7 +833,7 @@ export default function RadiologyForm() {
                       </td>
 
                       <td style={{ width: 220 }}>
-                        <div className="d-flex flex-column align-items-start">
+                        <div className="d-flex flex-column align-items-center">
                           <input
                             type="file"
                             accept="image/*,application/pdf"
@@ -767,13 +844,13 @@ export default function RadiologyForm() {
                           />
                           {row.idProof ? (
                             <small
-                              className="text-truncate mt-1"
+                              className="text-truncate mt-1 text-center"
                               style={{ maxWidth: 200 }}
                             >
                               <strong>Selected:</strong> {row.idProof.name}
                             </small>
                           ) : (
-                            <small className="text-muted mt-1">
+                            <small className="text-muted mt-1 text-center">
                               No file selected
                             </small>
                           )}
@@ -783,7 +860,7 @@ export default function RadiologyForm() {
                       <td>
                         <input
                           type="number"
-                          className="form-control"
+                          className="form-control form-control-sm"
                           min="0"
                           value={row.cost}
                           onChange={(e) =>
@@ -794,10 +871,11 @@ export default function RadiologyForm() {
 
                       <td>
                         <button
-                          className="btn btn-sm btn-danger"
+                          className="btn btn-outline-danger btn-sm"
+                          style={{ padding: "0 6px" }}
                           onClick={() => removeRow(i)}
                         >
-                          X
+                          ✕
                         </button>
                       </td>
                     </tr>
@@ -805,55 +883,48 @@ export default function RadiologyForm() {
                 </tbody>
               </table>
             </div>
-
-            <button
-              className="btn btn-outline-primary btn-sm me-2"
-              onClick={addRow}
-            >
-              + Add Scan
-            </button>
-            <button
-              className="btn btn-outline-secondary btn-sm"
-              onClick={clearRows}
-            >
-              Clear
-            </button>
+            <div className="d-flex justify-content-start gap-2 no-print mt-3">
+              <button
+                className="btn btn-outline-theme"
+                onClick={addRow}
+              >
+                + Add Scan
+              </button>
+              <button
+                className="btn btn-outline-secondary"
+                onClick={clearRows}
+              >
+                Clear All
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Remarks */}
-        <div className="full-width-card card mb-3">
-          <div className="p-2 text-white" style={{ background: "#01C0C8" }}>
-            <h5 className="mb-0">Radiologist Remarks</h5>
-          </div>
-          <div className="card-body">
+          {/* Remarks */}
+          <div className="mb-3">
+            <div className="section-title">Radiologist Remarks</div>
             <textarea
-              rows="3"
+              rows="4"
               className="form-control"
               id="finalSummary"
               value={form.finalSummary}
               onChange={handleFormChange}
             ></textarea>
           </div>
-        </div>
 
-        {/* Save */}
-        <div className="text-center mb-3">
-          <button
-            className="btn text-white"
-            style={{ background: "#01C0C8" }}
-            onClick={saveData}
-          >
-            Save
-          </button>
+          <div className="d-flex justify-content-center gap-2 mb-3 no-print">
+            <button className="btn btn-theme" onClick={saveData}>
+              Save
+            </button>
+          </div>
+
+          <datalist id="testList">
+            <option value="X-Ray Chest" />
+            <option value="Ultrasound Abdomen" />
+            <option value="MRI Brain" />
+            <option value="CT Scan Whole Abdomen" />
+          </datalist>
         </div>
       </div>
-      <datalist id="testList">
-        <option value="X-Ray Chest" />
-        <option value="Ultrasound Abdomen" />
-        <option value="MRI Brain" />
-        <option value="CT Scan Whole Abdomen" />
-      </datalist>
-    </>
+    </div>
   );
 }
