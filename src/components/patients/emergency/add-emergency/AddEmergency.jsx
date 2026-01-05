@@ -271,7 +271,18 @@ const AddEmergency = () => {
                   <label htmlFor="city">
                     City <span style={{ color: "red" }}>*</span>
                   </label>
-                  <input type="text" id="city" className="form-control" />
+                  <input
+                    type="text"
+                    id="city"
+                    className="form-control"
+                    placeholder="Enter City"
+                    onChange={(e) => {
+                      e.target.value = e.target.value.replace(
+                        /[^A-Za-z ]/g,
+                        ""
+                      );
+                    }}
+                  />
                 </div>
               </div>
 

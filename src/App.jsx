@@ -56,6 +56,7 @@ import Settings from "./components/setting/Settings";
 import EditPatientAppointment from "./components/appointments/edit-appointments/EditPatientAppointment";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import CreateInvoice from "./components/invoice/create-invoice/CreateInvoice";
+import ViewInvoice from "./components/invoice/manage-invoices/ViewInvoice";
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Swal from "sweetalert2";
@@ -473,6 +474,10 @@ function App() {
           element: <ManageInvoice />,
         },
 
+        {
+          path: "invoice/view-invoice/:id",
+          element: <ViewInvoice />,
+        },
 
         //my profile route can be added here
         {

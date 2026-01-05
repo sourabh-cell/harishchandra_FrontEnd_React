@@ -127,9 +127,10 @@ const AddIpd = () => {
                   </label>
                   <input
                     type="text"
-                    id="firstName"
                     className="form-control"
-                    placeholder="Enter First Name"
+                    onChange={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "");
+                    }}
                   />
                 </div>
 
@@ -139,9 +140,10 @@ const AddIpd = () => {
                   </label>
                   <input
                     type="text"
-                    id="lastName"
                     className="form-control"
-                    placeholder="Enter Last Name"
+                    onChange={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "");
+                    }}
                   />
                 </div>
               </div>
@@ -207,6 +209,10 @@ const AddIpd = () => {
                     id="contactNumber"
                     className="form-control"
                     placeholder="Enter Contact Number"
+                    maxLength={10}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.replace(/[^0-9]/g, "");
+                    }}
                   />
                 </div>
 
@@ -219,6 +225,10 @@ const AddIpd = () => {
                     id="emergencyContact"
                     className="form-control"
                     placeholder="Enter Emergency Contact"
+                    maxLength={10}
+                    onChange={(e) => {
+                      e.target.value = e.target.value.replace(/[^0-9]/g, "");
+                    }}
                   />
                 </div>
               </div>
@@ -273,7 +283,16 @@ const AddIpd = () => {
                     <label htmlFor="city">
                       City <span style={{ color: "red" }}>*</span>
                     </label>
-                    <input type="text" id="city" className="form-control" />
+                    <input
+                      type="text"
+                      className="form-control"
+                      onChange={(e) => {
+                        e.target.value = e.target.value.replace(
+                          /[^a-zA-Z]/g,
+                          ""
+                        );
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -287,7 +306,11 @@ const AddIpd = () => {
 
                   <div className="col-md-6">
                     <label htmlFor="pincode">Pincode</label>
-                    <input type="text" id="pincode" className="form-control" />
+                    <input
+                      type="number"
+                      id="pincode"
+                      className="form-control"
+                    />
                   </div>
                 </div>
               </div>
