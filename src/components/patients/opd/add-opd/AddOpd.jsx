@@ -143,13 +143,26 @@ const AddOpd = () => {
                 <label className="form-label fw-semibold">
                   First Name <span style={{ color: "red" }}>*</span>
                 </label>
-                <input type="text" className="form-control" />
+                <input
+                  type="text"
+                  className="form-control"
+                  onChange={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "");
+                  }}
+                />
               </div>
+
               <div className="col-md-6">
                 <label className="form-label fw-semibold">
                   Last Name <span style={{ color: "red" }}>*</span>
                 </label>
-                <input type="text" className="form-control" />
+                <input
+                  type="text"
+                  className="form-control"
+                  onChange={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "");
+                  }}
+                />
               </div>
             </div>
 
@@ -176,7 +189,13 @@ const AddOpd = () => {
             <div className="row my-4">
               <div className="col-md-6">
                 <label className="form-label fw-semibold">Occupation</label>
-                <input type="text" className="form-control" />
+                <input
+                  type="text"
+                  className="form-control"
+                  onChange={(e) => {
+                    e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "");
+                  }}
+                />
               </div>
               <div className="col-md-6">
                 <label className="form-label fw-semibold">
@@ -224,13 +243,28 @@ const AddOpd = () => {
                 <label className="form-label fw-semibold">
                   Contact Number <span style={{ color: "red" }}>*</span>
                 </label>
-                <input type="tel" className="form-control" />
+                <input
+                  type="tel"
+                  className="form-control"
+                  maxLength={10}
+                  onChange={(e) => {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, "");
+                  }}
+                />
               </div>
+
               <div className="col-md-6">
                 <label className="form-label fw-semibold">
                   Emergency Contact <span style={{ color: "red" }}>*</span>
                 </label>
-                <input type="tel" className="form-control" />
+                <input
+                  type="tel"
+                  className="form-control"
+                  maxLength={10}
+                  onChange={(e) => {
+                    e.target.value = e.target.value.replace(/[^0-9]/g, "");
+                  }}
+                />
               </div>
             </div>
 
@@ -273,7 +307,13 @@ const AddOpd = () => {
                   <label className="form-label fw-semibold">
                     City <span style={{ color: "red" }}>*</span>
                   </label>
-                  <input type="text" className="form-control" />
+                  <input
+                    type="text"
+                    className="form-control"
+                    onChange={(e) => {
+                      e.target.value = e.target.value.replace(/[^a-zA-Z]/g, "");
+                    }}
+                  />
                 </div>
               </div>
 
@@ -286,7 +326,7 @@ const AddOpd = () => {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-semibold">Pincode</label>
-                  <input type="text" className="form-control" />
+                  <input type="number" className="form-control" />
                 </div>
               </div>
             </div>
