@@ -9,19 +9,21 @@
         $('#income-expense-summary-chart-daterange input').val(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'));
     }
 
-    $('#income-expense-summary-chart-daterange').daterangepicker({
-      opens: 'left',
-      startDate: start,
-        endDate: end,
-        ranges: {
-           'Today': [moment(), moment()],
-           'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
-           'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-           'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-           'This Month': [moment().startOf('month'), moment().endOf('month')],
-           'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
-        }
-    }, cb);
+    if ($('#income-expense-summary-chart-daterange').length) {
+      $('#income-expense-summary-chart-daterange').daterangepicker({
+        opens: 'left',
+        startDate: start,
+          endDate: end,
+          ranges: {
+             'Today': [moment(), moment()],
+             'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+             'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+             'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+             'This Month': [moment().startOf('month'), moment().endOf('month')],
+             'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+          }
+      }, cb);
+    }
 
     cb(start, end);
 
@@ -64,20 +66,24 @@
     // Create a new line chart object where as first parameter we pass in a selector
     // that is resolving to our chart container element. The Second parameter
     // is the actual data object.
-    new Chartist.Line('#income-expense-summary-chart', data, options, responsiveOptions);
+    if ($('#income-expense-summary-chart').length) {
+      new Chartist.Line('#income-expense-summary-chart', data, options, responsiveOptions);
+    }
 
 
     //Inline Calendar
 
     var isRtl = $('body').hasClass('rtl');
 
-    $('#dashboard-inline-datepicker').datepicker({
-      rtl: isRtl,
-      templates: {
-        leftArrow: '<i class="icon-arrow-left-circle"></i>',
-        rightArrow: '<i class="icon-arrow-right-circle"></i>'
+    if ($('#dashboard-inline-datepicker').length) {
+      $('#dashboard-inline-datepicker').datepicker({
+        rtl: isRtl,
+        templates: {
+          leftArrow: '<i class="icon-arrow-left-circle"></i>',
+          rightArrow: '<i class="icon-arrow-right-circle"></i>'
+      }
+      });
     }
-    });
 
      $(document).on('click', '.navbar-toggler', function(){
       window.dispatchEvent(new Event('resize'));
@@ -126,7 +132,8 @@
       
         //Vector map
 
-        $('#dashboard-vmap').vectorMap({
+        if ($('#dashboard-vmap').length) {
+          $('#dashboard-vmap').vectorMap({
           map: 'world_mill_en',
           panOnDrag: true,
           backgroundColor: 'transparent',
@@ -328,6 +335,8 @@
           }
         });
 
+        }
+
         if ($("#performance-indicator-chart").length) {
           const ctx = document.getElementById('performance-indicator-chart');
           new Chart(ctx, {
@@ -414,35 +423,39 @@
 
 
 
-        if ($.cookie('stellar-pro-banner')!="true") {
-          document.querySelector('#proBanner').classList.add('d-flex');
-          document.querySelector('.navbar').classList.remove('fixed-top');
+        if (document.querySelector('#proBanner') && document.querySelector('.navbar')) {
+          if ($.cookie('stellar-pro-banner')!="true") {
+            document.querySelector('#proBanner').classList.add('d-flex');
+            document.querySelector('.navbar').classList.remove('fixed-top');
+          }
+          else {
+            document.querySelector('#proBanner').classList.add('d-none');
+            document.querySelector('.navbar').classList.add('fixed-top');
+          }
+
+          if ($( ".navbar" ).hasClass( "fixed-top" )) {
+            document.querySelector('.page-body-wrapper').classList.remove('pt-0');
+            document.querySelector('.navbar').classList.remove('proBanner-padding-top');
+          }
+          else {
+            document.querySelector('.page-body-wrapper').classList.add('pt-0');
+            document.querySelector('.navbar').classList.add('proBanner-padding-top');
+
+          }
+          if (document.querySelector('#bannerClose')) {
+            document.querySelector('#bannerClose').addEventListener('click',function() {
+              document.querySelector('#proBanner').classList.add('d-none');
+              document.querySelector('#proBanner').classList.remove('d-flex');
+              document.querySelector('.navbar').classList.remove('pt-5');
+              document.querySelector('.navbar').classList.add('fixed-top');
+              document.querySelector('.page-body-wrapper').classList.add('proBanner-padding-top');
+              document.querySelector('.navbar').classList.remove('pt-3');
+              document.querySelector('.navbar').classList.remove('proBanner-padding-top');
+              var date = new Date();
+              date.setTime(date.getTime() + 24 * 60 * 60 * 1000);
+              $.cookie('stellar-pro-banner', "true", { expires: date });
+            });
+          }
         }
-        else {
-          document.querySelector('#proBanner').classList.add('d-none');
-          document.querySelector('.navbar').classList.add('fixed-top');
-        }
-        
-        if ($( ".navbar" ).hasClass( "fixed-top" )) {
-          document.querySelector('.page-body-wrapper').classList.remove('pt-0');
-          document.querySelector('.navbar').classList.remove('proBanner-padding-top');
-        }
-        else {
-          document.querySelector('.page-body-wrapper').classList.add('pt-0');
-          document.querySelector('.navbar').classList.add('proBanner-padding-top');
-          
-        }
-        document.querySelector('#bannerClose').addEventListener('click',function() {
-          document.querySelector('#proBanner').classList.add('d-none');
-          document.querySelector('#proBanner').classList.remove('d-flex');
-          document.querySelector('.navbar').classList.remove('pt-5');
-          document.querySelector('.navbar').classList.add('fixed-top');
-          document.querySelector('.page-body-wrapper').classList.add('proBanner-padding-top');
-          document.querySelector('.navbar').classList.remove('pt-3');
-          document.querySelector('.navbar').classList.remove('proBanner-padding-top');
-          var date = new Date();
-          date.setTime(date.getTime() + 24 * 60 * 60 * 1000); 
-          $.cookie('stellar-pro-banner', "true", { expires: date });
-        });
   });
 })(jQuery);

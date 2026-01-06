@@ -6,6 +6,12 @@ import {
   selectRadiologies,
   selectRadiologiesStatus,
   selectRadiologiesError,
+  updateRadiologyStatus,
+  selectStatusUpdateRadiologyStatus,
+  selectStatusUpdateRadiologyError,
+  deleteRadiology,
+  selectDeleteRadiologyStatus,
+  selectDeleteRadiologyError,
 } from "../../../../features/radiologySlice";
 import { NavLink } from "react-router-dom";
 
@@ -16,6 +22,10 @@ const RadiologyReportList = () => {
   const radiologies = useSelector(selectRadiologies);
   const radiologiesStatus = useSelector(selectRadiologiesStatus);
   const radiologiesError = useSelector(selectRadiologiesError);
+  const statusUpdateStatus = useSelector(selectStatusUpdateRadiologyStatus);
+  const statusUpdateError = useSelector(selectStatusUpdateRadiologyError);
+  const deleteStatus = useSelector(selectDeleteRadiologyStatus);
+  const deleteError = useSelector(selectDeleteRadiologyError);
 
   const [reports, setReports] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,6 +77,7 @@ const RadiologyReportList = () => {
           // Then override with mapped UI fields
           id: r.id,
           patient: r.patientName || "",
+          hospitalId: r.patientHospitalId || r.hospitalId || "",
           age: r.patientAge || "",
           gender: r.patientGender || "",
           phone: r.patientContact || "",
@@ -119,6 +130,26 @@ const RadiologyReportList = () => {
     }
   }, [radiologies, radiologiesStatus]);
 
+  // Handle status update result
+  useEffect(() => {
+    if (statusUpdateStatus === "failed") {
+      console.error("Status update failed:", statusUpdateError);
+      alert(`Failed to update status: ${statusUpdateError?.message || 'Unknown error'}. Please try again.`);
+    }
+  }, [statusUpdateStatus, statusUpdateError]);
+
+  // Handle delete result
+  useEffect(() => {
+    if (deleteStatus === "succeeded") {
+      console.log("Delete succeeded");
+      window.bootstrap.Modal.getInstance(deleteModalRef.current).hide();
+      setDeleteId(null);
+    } else if (deleteStatus === "failed") {
+      console.error("Delete failed:", deleteError);
+      alert(`Failed to delete report: ${deleteError?.message || 'Unknown error'}. Please try again.`);
+    }
+  }, [deleteStatus, deleteError]);
+
   const statusBadge = (status) => {
     const statusUpper = String(status || "").toUpperCase();
     if (statusUpper === "COMPLETED")
@@ -128,6 +159,10 @@ const RadiologyReportList = () => {
     if (statusUpper === "PENDING")
       return <span className="badge text-bg-warning">Pending</span>;
     return <span className="badge text-bg-warning">{status || "Pending"}</span>;
+  };
+
+  const handleStatusChange = (reportId, newStatus) => {
+    dispatch(updateRadiologyStatus({ reportId, status: newStatus }));
   };
 
   const filteredReports = reports
@@ -344,9 +379,7 @@ const RadiologyReportList = () => {
   };
 
   const handleDelete = () => {
-    // TODO: Implement backend delete endpoint
-    alert("Delete functionality requires backend API endpoint");
-    window.bootstrap.Modal.getInstance(deleteModalRef.current).hide();
+    dispatch(deleteRadiology(deleteId));
   };
 
   const saveReport = (e) => {
@@ -488,6 +521,9 @@ const RadiologyReportList = () => {
       <div class="info-label">Name:</div> <div>${
         selectedReport.patient || "N/A"
       }</div>
+      <div class="info-label">Hospital ID:</div> <div>${
+        selectedReport.hospitalId || "N/A"
+      }</div>
       <div class="info-label">Age:</div> <div>${
         selectedReport.age || "N/A"
       }</div>
@@ -589,7 +625,7 @@ const RadiologyReportList = () => {
                     onChange={(e) => setStatusFilter(e.target.value)}
                   >
                     <option value="">All status</option>
-                    <option value="Pending">Pending</option>
+                   
                     <option value="Completed">Completed</option>
                     <option value="Delivered">Delivered</option>
                   </select>
@@ -660,7 +696,16 @@ const RadiologyReportList = () => {
                             View Scan
                           </button>
                         </td>
-                        <td>{statusBadge(r.status)}</td>
+                        <td>
+                          <select
+                            className="form-select form-select-sm"
+                            value={r.status || r.reportStatus || "COMPLETED"}
+                            onChange={(e) => handleStatusChange(r.id, e.target.value)}
+                          >
+                            <option value="COMPLETED">Completed</option>
+                            <option value="DELIVERED">Delivered</option>
+                          </select>
+                        </td>
                         <td>
                           <div className="action-buttons d-inline-flex gap-2">
                             <button
@@ -714,6 +759,9 @@ const RadiologyReportList = () => {
                     <strong>Patient:</strong> {selectedReport.patient}
                   </p>
                   <p>
+                    <strong>Hospital ID:</strong> {selectedReport.hospitalId}
+                  </p>
+                  <p>
                     <strong>Age:</strong> {selectedReport.age}
                   </p>
                   <p>
@@ -732,16 +780,29 @@ const RadiologyReportList = () => {
                     <strong>Scan Time:</strong> {selectedReport.time}
                   </p>
                   <p>
-                    <strong>Scan Type:</strong> {selectedReport.test}
-                  </p>
-                  <p>
                     <strong>Status:</strong>{" "}
                     {statusBadge(selectedReport.status)}
                   </p>
                   <hr />
-                  <strong>Findings:</strong>
+                  <strong>Scan Details:</strong>
+                  {selectedReport.scanDetails && selectedReport.scanDetails.length > 0 ? (
+                    <div className="mt-3">
+                      {selectedReport.scanDetails.map((scan, idx) => (
+                        <div key={idx} className="mb-3 p-3 border rounded">
+                          <p><strong>Scan Name:</strong> {scan.scanName || "N/A"}</p>
+                          <p><strong>Findings:</strong> {scan.findings || "N/A"}</p>
+                          <p><strong>Impression:</strong> {scan.impression || "N/A"}</p>
+                          <p><strong>Cost:</strong> ₹{scan.cost || 0}</p>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No scan details available</p>
+                  )}
+                  <hr />
+                  <strong>Final Summary:</strong>
                   <pre style={{ whiteSpace: "pre-wrap" }}>
-                    {selectedReport.report}
+                    {selectedReport.report || selectedReport.finalSummary || "No summary available"}
                   </pre>
                 </div>
               )}
@@ -1106,7 +1167,7 @@ const RadiologyReportList = () => {
                     <label className="form-label">Status</label>
                     <select
                       className="form-select form-select-sm"
-                      value={editReportData.status || ""}
+                      value={editReportData.status || "COMPLETED"}
                       onChange={(e) =>
                         setEditReportData({
                           ...editReportData,
@@ -1114,10 +1175,8 @@ const RadiologyReportList = () => {
                         })
                       }
                     >
-                      <option value="">Select Status</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Delivered">Delivered</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="DELIVERED">Delivered</option>
                     </select>
                   </div>
 

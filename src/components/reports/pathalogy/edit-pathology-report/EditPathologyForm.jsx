@@ -2,12 +2,6 @@ import React, { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Swal from "sweetalert2";
-import {
-  createPathology,
-  resetCreateState,
-  selectCreatePathologyStatus,
-  selectCreatePathologyError,
-} from "../../../../features/pathologySlice";
 import { updatePathology } from "../../../../features/pathologySlice";
 import { removePathologyFromCache } from "../../../../features/pathologySlice";
 import { fetchPathologies } from "../../../../features/pathologySlice";
@@ -84,6 +78,11 @@ export default function EditPathologyForm() {
   const [isVisible, setIsVisible] = useState(true);
   const printRef = useRef();
 
+  // Track initial state to prevent unnecessary updates
+  const [initialForm, setInitialForm] = useState({});
+  const [initialTests, setInitialTests] = useState([]);
+  const [initialRemarks, setInitialRemarks] = useState("");
+
   const totalTests = tests.length;
   const totalAmount = tests.reduce(
     (sum, t) => sum + (parseFloat(t.cost) || 0),
@@ -152,7 +151,6 @@ export default function EditPathologyForm() {
       .then((data) => {
         const rec = data || {};
         // patient
-        console.debug("fetchPathologyById - record:", rec);
         const patientName =
           rec.patientName ||
           rec.patient?.name ||
@@ -287,16 +285,8 @@ export default function EditPathologyForm() {
             }
           }
         } catch (e) {
-          console.debug("Patient lookup failed:", e);
+          // Patient lookup failed
         }
-
-        console.debug("Resolved fields:", {
-          patientHospitalId,
-          patientInternalId,
-          contactVal,
-          genderVal,
-          emailVal,
-        });
 
         // doctor
         const doctorName = rec.doctorName || rec.doctor?.name || "";
@@ -344,26 +334,33 @@ export default function EditPathologyForm() {
           }
         }
 
-        setForm((prev) => ({
-          ...prev,
-          patientName: patientName || prev.patientName,
-          age: ageVal || prev.age,
-          gender: genderVal || prev.gender,
-          contact: contactVal || prev.contact,
-          email: emailVal || prev.email,
-          patientHospitalId: patientHospitalId || prev.patientHospitalId,
-          patientInternalId: patientInternalId || prev.patientInternalId,
-          doctor: doctorName || prev.doctor,
-          doctorId: doctorId || prev.doctorId,
-          labTechnicianName: techName || prev.labTechnicianName,
-          labTechnicianId: techId || prev.labTechnicianId,
-          sampleType: rec.sampleType || rec.sample_type || prev.sampleType,
-          collectedOn: collectedOn || prev.collectedOn,
-          collectedTime: collectedTime || prev.collectedTime,
+        const newForm = {
+          ...form,
+          patientName: patientName || form.patientName,
+          age: ageVal || form.age,
+          gender: genderVal || form.gender,
+          contact: contactVal || form.contact,
+          email: emailVal || form.email,
+          patientHospitalId: patientHospitalId || form.patientHospitalId,
+          patientInternalId: patientInternalId || form.patientInternalId,
+          doctor: doctorName || form.doctor,
+          doctorId: doctorId || form.doctorId,
+          labTechnicianName: techName || form.labTechnicianName,
+          labTechnicianId: techId || form.labTechnicianId,
+          sampleType: rec.sampleType || rec.sample_type || form.sampleType,
+          collectedOn: collectedOn || form.collectedOn,
+          collectedTime: collectedTime || form.collectedTime,
           reportStatus: rec.reportStatus || rec.status || "PENDING",
-        }));
-        if (mappedTests.length) setTests(mappedTests);
+        };
+        setForm(newForm);
+        const newTests = mappedTests.length ? mappedTests : tests;
+        setTests(newTests);
         setRemarks(remarksVal);
+
+        // Set initial states for change detection
+        setInitialForm(newForm);
+        setInitialTests([...newTests]);
+        setInitialRemarks(remarksVal);
       })
       .catch((err) => {
         console.error("Failed to fetch pathology:", err);
@@ -373,7 +370,20 @@ export default function EditPathologyForm() {
           text: "Unable to fetch pathology data.",
         });
       });
-  }, [dispatch, reportId, patients]);
+  }, [dispatch, reportId]);
+
+  // Update gender and email from patients if missing
+  React.useEffect(() => {
+    if (!form.patientInternalId || !patients.length || (form.gender && form.email)) return;
+    const found = patients.find(p => String(p.id || p._id || p.patientId || p.patient_id) === String(form.patientInternalId));
+    if (found) {
+      setForm(prev => ({
+        ...prev,
+        gender: found.gender ? (String(found.gender).toLowerCase().startsWith('m') ? 'Male' : String(found.gender).toLowerCase().startsWith('f') ? 'Female' : 'Other') : prev.gender,
+        email: found.email || found.contactEmail || found.emailAddress || prev.email
+      }));
+    }
+  }, [patients, form.patientInternalId, form.gender, form.email]);
 
   // Update suggestions when patientQuery or patients change
   React.useEffect(() => {
@@ -397,14 +407,6 @@ export default function EditPathologyForm() {
 
   // Update doctor suggestions when doctorQuery or fetched doctorNameIds change
   React.useEffect(() => {
-    // debug log: show loaded doctorNameIds and current query
-    console.debug(
-      "doctorNameIdsStatus:",
-      doctorNameIdsStatus,
-      "count:",
-      (doctorNameIds || []).length
-    );
-    console.debug("doctorQuery:", doctorQuery);
     if (!doctorQuery) {
       setDoctorSuggestions([]);
       return;
@@ -417,7 +419,6 @@ export default function EditPathologyForm() {
           d.id.toLowerCase().includes(q) || d.name.toLowerCase().includes(q)
       )
       .slice(0, 10);
-    console.debug("Doctor Matches:", matches);
     setDoctorSuggestions(matches);
   }, [doctorQuery, doctorNameIds]);
 
@@ -599,6 +600,20 @@ export default function EditPathologyForm() {
   };
 
   const handleSave = () => {
+    // Check if any data has changed
+    const formChanged = JSON.stringify(form) !== JSON.stringify(initialForm);
+    const testsChanged = JSON.stringify(tests) !== JSON.stringify(initialTests);
+    const remarksChanged = remarks !== initialRemarks;
+
+    if (!formChanged && !testsChanged && !remarksChanged) {
+      Swal.fire({
+        icon: "info",
+        title: "No Changes Detected",
+        text: "No data has been modified. Update cancelled.",
+      });
+      return;
+    }
+
     const { ok, invalidFields } = validateAll();
     if (!ok) {
       const pretty = invalidFields
@@ -610,7 +625,6 @@ export default function EditPathologyForm() {
         html: `<pre style=\"text-align:left\">${pretty}</pre>`,
         text: "Please correct the highlighted fields before saving.",
       });
-      console.debug("Validation failed fields:", invalidFields, "form:", form);
       return;
     }
     // build payload matching backend contract
@@ -687,26 +701,57 @@ export default function EditPathologyForm() {
     }
 
     const payload = {
+      // identifiers
       patientId: patientIdToSend,
-      // also include patient-level fields so backend can update patient info
+      id: reportId,
+      _id: reportId,
+
+      // patient fields (send both generic and DTO-style keys to ensure backend saves and list displays)
       patientName: form.patientName || undefined,
-      patientHospitalId: form.patientHospitalId || undefined,
+      patientAge: form.age || undefined,
+      patientGender: form.gender || undefined,
+      patientContact: form.contact || undefined,
+      patientEmail: form.email || undefined,
+      hospitalPatientId: form.patientHospitalId || undefined,
+
+      // also keep legacy/generic keys in case backend maps them
       age: form.age || undefined,
       gender: form.gender || undefined,
       contact: form.contact || undefined,
       email: form.email || undefined,
+      patientHospitalId: form.patientHospitalId || undefined,
+
+      // doctor / technician
       doctorId:
         form.doctorId && !Number.isNaN(Number(form.doctorId))
           ? Number(form.doctorId)
           : form.doctorId || null,
+      doctorName: form.doctor || form.doctorName || undefined,
+      // also send a generic doctor field for backends that map by name only
+      doctor: form.doctor || form.doctorName || undefined,
       labTechnicianId: labTechnicianIdToSend || null,
+      labTechnicianName: form.labTechnicianName || undefined,
+      // send a generic technician field too
+      labTechnician: form.labTechnicianName || undefined,
+
+      // sample/report
       sampleType: form.sampleType || "",
       collectedOn: form.collectedOn || "",
       collectionTime: collectionTime,
       remarks: remarks || "",
       totalCost: parseFloat(Number(totalAmount).toFixed(2)) || 0,
       reportStatus: form.reportStatus || "PENDING",
+
+      // test results (send in expected shape)
       testResults: tests.map((t) => ({
+        testName: t.name || "",
+        resultValue: t.result || "",
+        units: t.units || "",
+        referenceRange: t.range || "",
+        cost: parseFloat(Number(t.cost || 0).toFixed(2)) || 0,
+      })),
+      // also provide a fallback key many backends accept
+      test_results: tests.map((t) => ({
         testName: t.name || "",
         resultValue: t.result || "",
         units: t.units || "",

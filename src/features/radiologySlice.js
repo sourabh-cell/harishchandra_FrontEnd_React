@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export const fetchRadiologyTechnicians = createAsyncThunk(
   "radiology/fetchRadiologyTechnicians",
   async (_, { rejectWithValue }) => {
-    try {
+    try { 
       const token = getToken();
       const headers = {};
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -79,7 +79,7 @@ export const createRadiology = createAsyncThunk(
 // Update radiology report (PUT /radiology/update/:id)
 export const updateRadiology = createAsyncThunk(
   "radiology/updateRadiology",
-  async ({ id, payload }, { rejectWithValue }) => {
+  async ({ id, payload }, { rejectWithValue, dispatch }) => {
     try {
       const token = getToken();
       const isFormData =
@@ -93,7 +93,66 @@ export const updateRadiology = createAsyncThunk(
         payload,
         { headers }
       );
+      // Refresh the list after successful update
+      dispatch(fetchRadiologies());
       return res.data;
+    } catch (err) {
+      const payloadErr = err.response
+        ? {
+            message:
+              err.response.data?.message || err.response.data || err.message,
+            status: err.response.status,
+            url: err.config?.url,
+          }
+        : { message: err.message || "Network error", code: err.code };
+      return rejectWithValue(payloadErr);
+    }
+  }
+);
+
+// Update radiology status (PUT /radiology/status/:reportId/:status)
+export const updateRadiologyStatus = createAsyncThunk(
+  "radiology/updateRadiologyStatus",
+  async ({ reportId, status }, { rejectWithValue }) => {
+    try {
+      const token = getToken();
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await axios.put(
+        `${API_BASE_URL}/radiology/status/${reportId}/${status}`,
+        {},
+        { headers }
+      );
+      return { reportId, status, data: res.data };
+    } catch (err) {
+      const payloadErr = err.response
+        ? {
+            message:
+              err.response.data?.message || err.response.data || err.message,
+            status: err.response.status,
+            url: err.config?.url,
+          }
+        : { message: err.message || "Network error", code: err.code };
+      return rejectWithValue(payloadErr);
+    }
+  }
+);
+
+// Delete radiology report (DELETE /radiology/delete/:id)
+export const deleteRadiology = createAsyncThunk(
+  "radiology/deleteRadiology",
+  async (id, { rejectWithValue }) => {
+    try {
+      const token = getToken();
+      const headers = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const res = await axios.delete(
+        `${API_BASE_URL}/radiology/delete/${id}`,
+        { headers }
+      );
+      return { id, data: res.data };
     } catch (err) {
       const payloadErr = err.response
         ? {
@@ -121,6 +180,10 @@ const initialState = {
   radiologies: [],
   radiologiesStatus: "idle",
   radiologiesError: null,
+  statusUpdateStatus: "idle",
+  statusUpdateError: null,
+  deleteStatus: "idle",
+  deleteError: null,
 };
 
 const radiologySlice = createSlice({
@@ -174,6 +237,49 @@ const radiologySlice = createSlice({
       .addCase(updateRadiology.rejected, (state, action) => {
         state.updateStatus = "failed";
         state.updateError = action.payload || action.error.message;
+      });
+    // update radiology status
+    builder
+      .addCase(updateRadiologyStatus.pending, (state) => {
+        state.statusUpdateStatus = "loading";
+        state.statusUpdateError = null;
+      })
+      .addCase(updateRadiologyStatus.fulfilled, (state, action) => {
+        state.statusUpdateStatus = "succeeded";
+        const { reportId, status } = action.payload;
+        // update status in cached radiologies array
+        if (Array.isArray(state.radiologies)) {
+          const idx = state.radiologies.findIndex(
+            (r) => String(r.id || r._id) === String(reportId)
+          );
+          if (idx !== -1) {
+            state.radiologies[idx].reportStatus = status;
+          }
+        }
+      })
+      .addCase(updateRadiologyStatus.rejected, (state, action) => {
+        state.statusUpdateStatus = "failed";
+        state.statusUpdateError = action.payload || action.error.message;
+      });
+    // delete radiology
+    builder
+      .addCase(deleteRadiology.pending, (state) => {
+        state.deleteStatus = "loading";
+        state.deleteError = null;
+      })
+      .addCase(deleteRadiology.fulfilled, (state, action) => {
+        state.deleteStatus = "succeeded";
+        const { id } = action.payload;
+        // remove from cached radiologies array
+        if (Array.isArray(state.radiologies)) {
+          state.radiologies = state.radiologies.filter(
+            (r) => String(r.id || r._id) !== String(id)
+          );
+        }
+      })
+      .addCase(deleteRadiology.rejected, (state, action) => {
+        state.deleteStatus = "failed";
+        state.deleteError = action.payload || action.error.message;
       });
     // fetch radiology technicians
     builder
@@ -244,3 +350,15 @@ export const selectUpdateRadiologyError = (state) =>
   state.radiology?.updateError || null;
 export const selectLastUpdatedRadiology = (state) =>
   state.radiology?.lastUpdated || null;
+
+// selectors for status update
+export const selectStatusUpdateRadiologyStatus = (state) =>
+  state.radiology?.statusUpdateStatus || "idle";
+export const selectStatusUpdateRadiologyError = (state) =>
+  state.radiology?.statusUpdateError || null;
+
+// selectors for delete
+export const selectDeleteRadiologyStatus = (state) =>
+  state.radiology?.deleteStatus || "idle";
+export const selectDeleteRadiologyError = (state) =>
+  state.radiology?.deleteError || null;

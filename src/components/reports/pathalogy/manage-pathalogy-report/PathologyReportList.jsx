@@ -259,7 +259,7 @@ export default function PathologyReportList() {
                 onChange={(e) => setFilter(e.target.value)}
               >
                 <option value="">All Status</option>
-                <option value="PENDING">Pending</option>
+              
                 <option value="COMPLETED">Completed</option>
                 <option value="DELIVERED">Delivered</option>
               </select>
@@ -306,10 +306,9 @@ export default function PathologyReportList() {
                     <td>
                       <select
                         className="form-select form-select-sm"
-                        value={r.reportStatus}
+                        value={r.reportStatus || "COMPLETED"}
                         onChange={(e) => handleStatusChange(r.id, e.target.value)}
                       >
-                        <option value="PENDING">Pending</option>
                         <option value="COMPLETED">Completed</option>
                         <option value="DELIVERED">Delivered</option>
                       </select>

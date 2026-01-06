@@ -10,8 +10,6 @@ export const createPathology = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const token = getToken();
-      // debug token presence (will be visible in browser console)
-      console.debug("fetchPathologies - token present:", !!token);
       const headers = { "Content-Type": "application/json" };
       if (token) headers.Authorization = `Bearer ${token}`;
 
@@ -75,7 +73,6 @@ export const fetchLabTechnicians = createAsyncThunk(
         { headers }
       );
       const data = res.data?.data || res.data;
-      console.debug("fetchLabTechnicians response:", data);
       return data;
     } catch (err) {
       const payloadErr = err.response
@@ -92,20 +89,25 @@ export const fetchLabTechnicians = createAsyncThunk(
 );
 
 
-// Update pathology report (PUT /pathology/update/{reportId})
+// Update pathology report (PUT /pathology/update/{id}) – align with backend style similar to radiology
 export const updatePathology = createAsyncThunk(
   "pathology/updatePathology",
-  async ({ reportId, payload }, { rejectWithValue }) => {
+  async ({ reportId, payload }, { rejectWithValue, dispatch }) => {
     try {
       const token = getToken();
       const headers = { "Content-Type": "application/json" };
       if (token) headers.Authorization = `Bearer ${token}`;
 
+      const updatePayload = { ...payload, id: reportId, _id: reportId };
+
+      // Use PUT with report id in the URL, e.g. /pathology/update/{id}
       const res = await axios.put(
         `${API_BASE_URL}/pathology/update/${reportId}`,
-        payload,
+        updatePayload,
         { headers }
       );
+      // Refresh the list after successful update
+      dispatch(fetchPathologies());
       return res.data;
     } catch (err) {
       const payloadErr = err.response
@@ -259,7 +261,6 @@ const pathologySlice = createSlice({
         state.createStatus = "failed";
         state.createError = action.payload || action.error.message;
       });
-
 
     // fetch pathologies reducers
     builder

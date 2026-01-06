@@ -18,6 +18,7 @@ import {
 } from "../../../../features/commanSlice";
 
 export default function RadiologyForm() {
+  const today = new Date().toISOString().split('T')[0];
   const [tests, setTests] = useState([
     { name: "", findings: "", cost: 0, idProof: null },
   ]);
@@ -27,7 +28,7 @@ export default function RadiologyForm() {
     gender: "",
     contact: "",
     scanType: "",
-    reportDate: "",
+    reportDate: today,
     imagingTime: "",
     // new fields for payload
     patientId: "",
@@ -117,29 +118,37 @@ export default function RadiologyForm() {
   const validateAll = () => {
     const newValid = {};
     let ok = true;
+    const errors = [];
     const required = {
-      patientName: /^[A-Za-z\s]{3,60}$/,
-      age: /^[0-9]{1,3}$/,
-      gender: /.+/,
-      contact: /^[0-9]{10}$/,
-      scanType: /.+/,
-      reportDate: /.+/,
-      imagingTime: /.+/,
-      reportedBy: /.+/,
+      patientName: { regex: /^[A-Za-z\s]{3,60}$/, label: "Patient Name" },
+      age: { regex: /^[0-9]{1,3}$/, label: "Age" },
+      gender: { regex: /.+/, label: "Gender" },
+      contact: { regex: /^[0-9]{10}$/, label: "Contact" },
+      scanType: { regex: /.+/, label: "Scan Type" },
+      reportDate: { regex: /.+/, label: "Report Date" },
+      imagingTime: { regex: /.+/, label: "Imaging Time" },
+      radiologyPerformedByName: { regex: /.+/, label: "Radiology Technician" },
     };
-    Object.entries(required).forEach(([k, regex]) => {
+    Object.entries(required).forEach(([k, { regex, label }]) => {
       // coerce value to string safely before trimming to avoid "trim is not a function" errors
       const raw = form[k];
       const str = raw === undefined || raw === null ? "" : String(raw).trim();
       if (!regex.test(str)) {
         newValid[k] = false;
         ok = false;
+        errors.push(label);
       } else {
         newValid[k] = true;
       }
     });
+    // Check if at least one test is filled
+    const hasValidTest = tests.some(t => t.name.trim() !== "");
+    if (!hasValidTest) {
+      ok = false;
+      errors.push("At least one scan/procedure must be specified");
+    }
     setValid(newValid);
-    return ok;
+    return { ok, errors };
   };
 
   const dispatch = useDispatch();
@@ -348,11 +357,12 @@ export default function RadiologyForm() {
   };
 
   const saveData = async () => {
-    if (!validateAll()) {
+    const validation = validateAll();
+    if (!validation.ok) {
       Swal.fire({
         icon: "warning",
-        title: "Validation",
-        text: "Please fill all required fields.",
+        title: "Validation Errors",
+        text: validation.errors.join(", "),
       });
       return;
     }
@@ -687,6 +697,8 @@ export default function RadiologyForm() {
                       className="form-control"
                       value={form.reportDate}
                       onChange={handleFormChange}
+                      min={today}
+                      max={today}
                       required
                     />
                   </div>
