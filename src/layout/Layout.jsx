@@ -345,7 +345,7 @@ const Layout = () => {
         >
           <h5
             className="mb-0 font-weight-bold d-none d-lg-flex"
-            style={{ fontSize: "20px" }}
+            style={{ fontSize: "20px", fontFamily: "Ubuntu, sans-serif" }}
           >
             Harishchandra Multispeciality
           </h5>

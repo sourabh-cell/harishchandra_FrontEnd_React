@@ -8,7 +8,7 @@ import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
 const AddDepartment = () => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch(); 
 
   // Get state from Redux store
   const { addDepartmentStatus: status } = useSelector(
@@ -103,14 +103,22 @@ const AddDepartment = () => {
     <div
       className="card full-width-card mx-auto shadow"
       style={{
-        borderRadius: "0.75rem",
+        // subtle rounding only on the top edges
+        borderTopLeftRadius: "0.5rem",
+        borderTopRightRadius: "0.5rem",
+        borderBottomLeftRadius: "0",
+        borderBottomRightRadius: "0",
         overflow: "hidden",
       }}
     >
       {/* Header */}
       <div
         className="text-white text-center py-3"
-        style={{ backgroundColor: "#01C0C8" }}
+        style={{
+          backgroundColor: "#01C0C8",
+          borderTopLeftRadius: "0.5rem",
+          borderTopRightRadius: "0.5rem",
+        }}
       >
         <h4 className="mb-0">
           <i className="fas fa-building me-2"></i> Add Department
