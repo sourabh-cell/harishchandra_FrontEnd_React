@@ -700,58 +700,19 @@ export default function EditPathologyForm() {
       }
     }
 
+    // Backend expects a lean payload (no extra name fields)
     const payload = {
-      // identifiers
       patientId: patientIdToSend,
-      id: reportId,
-      _id: reportId,
-
-      // patient fields (send both generic and DTO-style keys to ensure backend saves and list displays)
-      patientName: form.patientName || undefined,
-      patientAge: form.age || undefined,
-      patientGender: form.gender || undefined,
-      patientContact: form.contact || undefined,
-      patientEmail: form.email || undefined,
-      hospitalPatientId: form.patientHospitalId || undefined,
-
-      // also keep legacy/generic keys in case backend maps them
-      age: form.age || undefined,
-      gender: form.gender || undefined,
-      contact: form.contact || undefined,
-      email: form.email || undefined,
-      patientHospitalId: form.patientHospitalId || undefined,
-
-      // doctor / technician
       doctorId:
         form.doctorId && !Number.isNaN(Number(form.doctorId))
           ? Number(form.doctorId)
           : form.doctorId || null,
-      doctorName: form.doctor || form.doctorName || undefined,
-      // also send a generic doctor field for backends that map by name only
-      doctor: form.doctor || form.doctorName || undefined,
-      labTechnicianId: labTechnicianIdToSend || null,
-      labTechnicianName: form.labTechnicianName || undefined,
-      // send a generic technician field too
-      labTechnician: form.labTechnicianName || undefined,
-
-      // sample/report
+      labTechnicianId: labTechnicianIdToSend,
       sampleType: form.sampleType || "",
       collectedOn: form.collectedOn || "",
-      collectionTime: collectionTime,
+      collectionTime: collectionTime, // already normalized to "HH:MM AM/PM"
       remarks: remarks || "",
-      totalCost: parseFloat(Number(totalAmount).toFixed(2)) || 0,
-      reportStatus: form.reportStatus || "PENDING",
-
-      // test results (send in expected shape)
       testResults: tests.map((t) => ({
-        testName: t.name || "",
-        resultValue: t.result || "",
-        units: t.units || "",
-        referenceRange: t.range || "",
-        cost: parseFloat(Number(t.cost || 0).toFixed(2)) || 0,
-      })),
-      // also provide a fallback key many backends accept
-      test_results: tests.map((t) => ({
         testName: t.name || "",
         resultValue: t.result || "",
         units: t.units || "",

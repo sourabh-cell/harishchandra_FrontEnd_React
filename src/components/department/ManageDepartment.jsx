@@ -94,7 +94,16 @@ const ManageDepartment = () => {
   );
 
   return (
-    <div className="card full-width-card shadow">
+    <div
+      className="card full-width-card shadow"
+      style={{
+        borderTopLeftRadius: "0.5rem",
+        borderTopRightRadius: "0.5rem",
+        borderBottomLeftRadius: "0",
+        borderBottomRightRadius: "0",
+        overflow: "hidden",
+      }}
+    >
       <div
         className="card-header text-white text-center"
         style={{ backgroundColor: "#01C0C8" }}

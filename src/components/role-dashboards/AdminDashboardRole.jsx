@@ -44,7 +44,7 @@ const AdminDashboardRole = () => {
                 </div>
                 <div>
                   <p className="mb-0 fs-4 fw-bold">8</p>
-                  <span className="small">Surgeries Today</span>
+                  <span className="small">Admitted Patient</span>
                 </div>
               </div>
               <div className="card-hero">
@@ -154,7 +154,7 @@ const AdminDashboardRole = () => {
               </div>
               <div>
                 <h4 className="mb-0 fw-bold">52</h4>
-                <p className="mb-0">Total Doctors</p>
+                <p className="mb-0">Total Patient</p>
               </div>
             </div>
           </div>
@@ -219,7 +219,7 @@ const AdminDashboardRole = () => {
               </div>
               <div>
                 <h4 className="mb-0 fw-bold">38</h4>
-                <p className="mb-0">Pending Bills</p>
+                <p className="mb-0">Total Doctor</p>
               </div>
             </div>
           </div>

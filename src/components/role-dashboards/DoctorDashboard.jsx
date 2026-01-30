@@ -55,24 +55,8 @@ const DoctorDashboard = () => {
                     <span className="small">Appointments Today</span>
                   </div>
                 </div>
-                <div className="card-hero">
-                  <div className="icon-box surgeries">
-                    <i className="fas fa-file-medical fa-2x" />
-                  </div>
-                  <div>
-                    <p className="mb-0 fs-4 fw-bold">15</p>
-                    <span className="small">Pending Reports</span>
-                  </div>
-                </div>
-                <div className="card-hero">
-                  <div className="icon-box discharge">
-                    <i className="fas fa-user-check fa-2x" />
-                  </div>
-                  <div>
-                    <p className="mb-0 fs-4 fw-bold">18</p>
-                    <span className="small">Patients Checked In</span>
-                  </div>
-                </div>
+                
+               
                 <img
                   src={img}
                   style={{ height: "241px" }}
