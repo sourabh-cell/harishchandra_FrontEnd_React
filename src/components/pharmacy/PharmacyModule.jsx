@@ -1,23 +1,23 @@
 import React, { useState } from "react";
+import Medicine1 from "./Medicine1";
 import Inventory from "./Inventory";
 import Prescription from "./Prescription";
 import Invoice from "./Invoice";
 import Order from "./Order";
-import Report from "./Report";
 
 function PharmacyModule() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [activeTab, setActiveTab] = useState("inventory");
+  const [activeTab, setActiveTab] = useState("medicine1");
 
   // Define tab icons
   const tabIcons = {
+    medicine1: "fa-pills",
     inventory: "fa-boxes-stacked",
     prescription: "fa-prescription",
     invoice: "fa-file-invoice-dollar",
     order: "fa-cart-shopping",
-    report: "fa-chart-line",
   };
 
   return (
@@ -34,7 +34,7 @@ function PharmacyModule() {
 
       {/* Tabs */}
       <ul className="nav nav-tabs px-3 pt-2">
-        {["inventory", "prescription", "invoice", "order", "report"].map(
+        {["medicine1", "inventory", "prescription", "invoice", "order"].map(
           (tab) => (
             <li className="nav-item" key={tab}>
               <button
@@ -43,7 +43,7 @@ function PharmacyModule() {
                 onClick={() => setActiveTab(tab)}
               >
                 <i className={`fa-solid ${tabIcons[tab]} me-2`}></i>
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab === "medicine1" ? "Medicine 1" : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
             </li>
           )
@@ -52,6 +52,7 @@ function PharmacyModule() {
 
       {/* Tab content */}
       <div className="p-3">
+        {activeTab === "medicine1" && <Medicine1 />}
         {activeTab === "inventory" && (
           <Inventory
             search={search}
@@ -74,7 +75,6 @@ function PharmacyModule() {
         )}
         {activeTab === "invoice" && <Invoice />}
         {activeTab === "order" && <Order />}
-        {activeTab === "report" && <Report />}
       </div>
     </div>
   );

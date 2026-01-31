@@ -27,18 +27,6 @@ function Order() {
             <li className="nav-item" role="presentation">
               <button
                 className="nav-link active"
-                id="internal-tab"
-                data-bs-toggle="pill"
-                data-bs-target="#internalOrders"
-                type="button"
-                role="tab"
-              >
-                <i className="fa-solid fa-hospital-user me-1"></i> Internal Requisitions
-              </button>
-            </li>
-            <li className="nav-item" role="presentation">
-              <button
-                className="nav-link"
                 id="external-tab"
                 data-bs-toggle="pill"
                 data-bs-target="#externalOrders"
@@ -51,51 +39,8 @@ function Order() {
           </ul>
 
           <div className="tab-content">
-            {/* 🏥 Internal Requisitions */}
-            <div className="tab-pane fade show active" id="internalOrders" role="tabpanel">
-              <div className="table-responsive">
-                <table className="table table-bordered table-hover mb-0" id="internalTable">
-                  <thead className="table-light text-center align-middle">
-                    <tr>
-                      <th>#</th>
-                      <th>Requisition ID</th>
-                      <th>Department</th>
-                      <th>Date</th>
-                      <th>Requested By</th>
-                      <th>Total Items</th>
-                      <th>Status</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>REQ-2025-011</td>
-                      <td>Emergency</td>
-                      <td>2025-11-05</td>
-                      <td>Dr. Sharma</td>
-                      <td>12</td>
-                      <td>
-                        <span className="badge bg-warning text-dark status-badge">
-                          Requested
-                        </span>
-                      </td>
-                      <td>
-                        <button className="btn btn-sm btn-success me-2 approve-btn">
-                          <i className="fa-solid fa-check me-1"></i> Approve
-                        </button>
-                        <button className="btn btn-sm btn-outline-secondary view-btn">
-                          <i className="fa-regular fa-eye me-1"></i> View
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
             {/* 🚚 External Supplier Orders */}
-            <div className="tab-pane fade" id="externalOrders" role="tabpanel">
+            <div className="tab-pane fade show active" id="externalOrders" role="tabpanel">
               <div className="table-responsive">
                 <table className="table table-bordered table-hover mb-0" id="externalTable">
                   <thead className="table-light text-center align-middle">
@@ -166,7 +111,6 @@ function Order() {
                     <label className="form-label">Order Type</label>
                     <select className="form-select" id="orderType" required>
                       <option value="">Select Type</option>
-                      <option value="internal">Internal Requisition</option>
                       <option value="external">External Supplier</option>
                     </select>
                   </div>

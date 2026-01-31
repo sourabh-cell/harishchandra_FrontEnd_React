@@ -5,6 +5,62 @@ export default function PatientRegistration() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Wait for DOM to be fully rendered before filling form
+    const timer = setTimeout(() => {
+      const firstName = document.getElementById("FirstName");
+      const lastName = document.getElementById("LastName");
+      const contact = document.getElementById("contact");
+      const emergencyContact = document.getElementById("emergencyContact");
+      const dob = document.getElementById("dob");
+      const age = document.getElementById("age");
+
+      // Check if editing existing patient
+      const editPatientData = localStorage.getItem("editPatient");
+      if (editPatientData) {
+        const patient = JSON.parse(editPatientData);
+        
+        // Fill form fields with patient data
+        if (firstName) firstName.value = patient.firstName || "";
+        if (lastName) lastName.value = patient.lastName || "";
+        if (contact) contact.value = patient.contact || "";
+        if (dob) dob.value = patient.dob || "";
+        if (age) age.value = patient.age || "";
+        
+        // Set gender if it matches an option
+        const genderSelect = document.getElementById("gender");
+        if (genderSelect) {
+          for (let i = 0; i < genderSelect.options.length; i++) {
+            if (genderSelect.options[i].text === patient.gender) {
+              genderSelect.selectedIndex = i;
+              break;
+            }
+          }
+        }
+        
+        // Set blood group if it matches an option
+        const bloodGroupSelect = document.getElementById("bloodGroup");
+        if (bloodGroupSelect) {
+          for (let i = 0; i < bloodGroupSelect.options.length; i++) {
+            if (bloodGroupSelect.options[i].text === patient.bloodGroup) {
+              bloodGroupSelect.selectedIndex = i;
+              break;
+            }
+          }
+        }
+        
+        // Fill other fields
+        const occupation = document.getElementById("occupation");
+        if (occupation) occupation.value = patient.occupation || "";
+        
+        const city = document.getElementById("city");
+        if (city) city.value = patient.city || "";
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     const firstName = document.getElementById("FirstName");
     const lastName = document.getElementById("LastName");
     const contact = document.getElementById("contact");

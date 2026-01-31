@@ -1,6 +1,87 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 const Inventory = () => {
+  // Sample new medicine data to pre-fill in the form
+  const sampleNewMedicine = {
+    drugId: "DRG001",
+    drugName: "Amoxicillin 500mg",
+    drugCategory: "Antibiotic",
+    drugType: "Tablet",
+    drugManufacturer: "Cipla Ltd",
+    drugBatch: "BT2024001",
+    drugQty: 500,
+    drugPrice: 2.5,
+    drugExpiry: "2025-12-31",
+    drugBarcode: "8901234567890",
+    drugNotes: "Sample medicine for testing"
+  };
+
+  // State for inventory data
+  const [inventory, setInventory] = useState([]);
+
+  // Function to pre-fill form with sample medicine data
+  const preFillForm = () => {
+    document.getElementById("drugId").value = sampleNewMedicine.drugId;
+    document.getElementById("drugName").value = sampleNewMedicine.drugName;
+    document.getElementById("drugCategory").value = sampleNewMedicine.drugCategory;
+    document.getElementById("drugType").value = sampleNewMedicine.drugType;
+    document.getElementById("drugManufacturer").value = sampleNewMedicine.drugManufacturer;
+    document.getElementById("drugBatch").value = sampleNewMedicine.drugBatch;
+    document.getElementById("drugQty").value = sampleNewMedicine.drugQty;
+    document.getElementById("drugPrice").value = sampleNewMedicine.drugPrice;
+    document.getElementById("drugExpiry").value = sampleNewMedicine.drugExpiry;
+    document.getElementById("drugBarcode").value = sampleNewMedicine.drugBarcode;
+    document.getElementById("drugNotes").value = sampleNewMedicine.drugNotes;
+  };
+
+  // Handle form submission
+  const handleFormSubmit = (e) => {
+    e.preventDefault();
+    
+    const newDrug = {
+      id: document.getElementById("drugId").value,
+      name: document.getElementById("drugName").value,
+      category: document.getElementById("drugCategory").value,
+      type: document.getElementById("drugType").value,
+      manufacturer: document.getElementById("drugManufacturer").value,
+      batch: document.getElementById("drugBatch").value,
+      qty: document.getElementById("drugQty").value,
+      price: document.getElementById("drugPrice").value,
+      expiry: document.getElementById("drugExpiry").value,
+      barcode: document.getElementById("drugBarcode").value
+    };
+
+    setInventory([...inventory, newDrug]);
+    
+    // Close modal
+    const modal = document.getElementById("drugModal");
+    const bootstrapModal = window.bootstrap.Modal.getInstance(modal);
+    if (bootstrapModal) {
+      bootstrapModal.hide();
+    } else {
+      const modalInstance = new window.bootstrap.Modal(modal);
+      modalInstance.hide();
+    }
+    
+    // Reset form
+    document.getElementById("drugForm").reset();
+  };
+
+  // Listen for modal show event to pre-fill data
+  useEffect(() => {
+    const modal = document.getElementById("drugModal");
+    if (modal) {
+      modal.addEventListener("show.bs.modal", () => {
+        preFillForm();
+      });
+    }
+    return () => {
+      if (modal) {
+        modal.removeEventListener("show.bs.modal", preFillForm);
+      }
+    };
+  }, []);
+
   return (
     <>
       <div
@@ -8,7 +89,7 @@ const Inventory = () => {
         id="inventoryTab"
         role="tabpanel"
       >
-        {/* 🔍 Search & Filter Section */}
+        {/* Search & Filter Section */}
         <div className="row gx-2 gy-2 mb-3 align-items-center">
           <div className="col-sm-6 col-md-4">
             <input
@@ -42,7 +123,7 @@ const Inventory = () => {
 
           <div className="col-auto ms-auto">
             <small className="text-muted me-3">
-              Showing <span id="count">0</span> items
+              Showing <span id="count">{inventory.length}</span> items
             </small>
             <button
               className="btn btn-outline-primary btn-sm"
@@ -54,7 +135,7 @@ const Inventory = () => {
           </div>
         </div>
 
-        {/* 🧾 Inventory Table */}
+        {/* Inventory Table */}
         <div className="table-responsive table-wrap print-area" id="printArea">
           <table
             className="table table-bordered table-hover mb-0 text-center"
@@ -76,15 +157,47 @@ const Inventory = () => {
                 <th className="no-print">Actions</th>
               </tr>
             </thead>
-            <tbody></tbody>
+            <tbody>
+              {inventory.length === 0 ? (
+                <tr>
+                  <td colSpan="12" className="text-muted py-4">
+                    No medicines in inventory. Click "Add / Update Stock" to add a new medicine.
+                  </td>
+                </tr>
+              ) : (
+                inventory.map((item, index) => (
+                  <tr key={index}>
+                    <td>{index + 1}</td>
+                    <td>{item.id}</td>
+                    <td>{item.name}</td>
+                    <td>{item.category}</td>
+                    <td>{item.type}</td>
+                    <td>{item.manufacturer}</td>
+                    <td>{item.batch}</td>
+                    <td>{item.qty}</td>
+                    <td>{item.price}</td>
+                    <td>{item.expiry}</td>
+                    <td>{item.barcode}</td>
+                    <td className="no-print">
+                      <button className="btn btn-sm btn-outline-primary me-1">
+                        <i className="fa-solid fa-edit"></i>
+                      </button>
+                      <button className="btn btn-sm btn-outline-danger">
+                        <i className="fa-solid fa-trash"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
           </table>
         </div>
 
-        {/* 📦 Add / Update Medicine Modal */}
+        {/* Add / Update Medicine Modal */}
         <div className="modal fade" id="drugModal" tabIndex={-1} aria-hidden="true">
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <form id="drugForm">
+              <form id="drugForm" onSubmit={handleFormSubmit}>
                 <div
                   className="modal-header"
                   style={{ backgroundColor: "#01C0C8", color: "white" }}
