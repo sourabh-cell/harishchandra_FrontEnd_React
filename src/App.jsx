@@ -87,6 +87,10 @@ import PatientVisitTable from "./components/patient managment/patient table/Pati
 import CreatePatientVisit from "./components/patient managment/Patient visit/CreatePatientVisit.jsx";
 import PatientRegistration from "./components/patient managment/patient registration/add patient/PatientRegistration.jsx";
 import PatientRegistrationList from "./components/patient managment/patient registration/manage patient/PatientRegistrationList.jsx";
+import PatientDashboard from "./components/case manager/PatientCaseTable.jsx";
+import PatientCaseView from "./components/case manager/PatientCaseView.jsx";
+import AddPatientCase from "./components/case manager/AddPatientCase.jsx";
+import PatientCaseTable from "./components/case manager/PatientCaseTable.jsx";
 
 function SessionManager() {
   const exp = useSelector(selectAuthExpiry);
@@ -234,6 +238,25 @@ function App() {
           path: "add-driver",
           element: <AddDriver />,
         },
+
+       // Case Manager Routes
+       {
+        path: "add-case-study",
+        element: <AddPatientCase/>,
+      },
+      {
+        path: "table-case-study",
+        element: <PatientCaseTable/>,
+      },
+      {
+        path: "view-patient-case/:id",
+        element: <PatientCaseView />,
+      },
+
+
+
+
+
 
         // Bed Manager Routes
         {

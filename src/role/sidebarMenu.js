@@ -210,7 +210,7 @@ export const sidebarMenu = [
       },
       {
         title: "View Case Studies",
-        path: "/dashboard/view-case-studies",
+        path: "/dashboard/table-case-study",
         permissions: ["CASE_STUDY_LIST"],
       },
     ],
