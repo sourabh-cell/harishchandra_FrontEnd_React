@@ -145,12 +145,12 @@ export const sidebarMenu = [
         children: [
           {
             title: "Add Patient",
-            path: "/dashboard/opd/add-patient",
+            path: "patients-registration/add-patient",
             permissions: ["PATIENT_ADD"],
           },
           {
             title: "Manage Patients",
-            path: "/dashboard/opd/view-patients",
+            path: "patients-registration-list/view-patients-list",
             permissions: ["PATIENT_LIST", "PATIENT_UPDATE", "PATIENT_DELETE"],
           },
         ],

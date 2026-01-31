@@ -85,6 +85,8 @@ import EditRadiologyForm from "./components/reports/radiology/edit-radiology-rep
 import ManageInvoice from "./components/invoice/manage-invoices/ManageInvoice.jsx";
 import PatientVisitTable from "./components/patient managment/patient table/PatientVisitTable.jsx";
 import CreatePatientVisit from "./components/patient managment/Patient visit/CreatePatientVisit.jsx";
+import PatientRegistration from "./components/patient managment/patient registration/add patient/PatientRegistration.jsx";
+import PatientRegistrationList from "./components/patient managment/patient registration/manage patient/PatientRegistrationList.jsx";
 
 function SessionManager() {
   const exp = useSelector(selectAuthExpiry);
@@ -430,13 +432,13 @@ function App() {
 
         //Patient management routes here
         {
-          path: "opd/add-patient",
-          element: <AddOpd />,
+          path: "patients-registration/add-patient",
+          element: <PatientRegistration />,
         },
 
         {
-          path: "opd/view-patients",
-          element: <ViewOpd />,
+          path: "patients-registration-list/view-patients-list",
+          element: <PatientRegistrationList />,
         },
 
         {
