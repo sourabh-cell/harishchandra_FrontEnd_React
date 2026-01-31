@@ -312,8 +312,9 @@ export default function ViewPatientAppointment() {
                                 r.appointment?.id) == a.id
                           ) || a,
                       }}
-                      className="btn1 bg-warning btn-sm ms-2"
+                      className={`btn1 bg-warning btn-sm ms-2 ${!a.id || isNaN(Number(a.id)) ? "disabled" : ""}`}
                       data-tooltip="Edit"
+                      style={!a.id || isNaN(Number(a.id)) ? { pointerEvents: "none", opacity: 0.5 } : {}}
                     >
                       <i className="bi bi-pencil"></i>
                     </NavLink>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -24,12 +24,36 @@ export default function EditPatientAppointment() {
   const isFromList = location?.state?.fromList === true;
   const navAppointment = location?.state?.appointment || null;
 
+  // Helper to get today's date in YYYY-MM-DD format (local time)
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Ref to track last valid date
+  const lastValidDateRef = useRef(getTodayDate());
+
+  // Helper function to check if date is in the past (local time)
+  const isPastDate = (dateString) => {
+    if (!dateString) return true;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    return dateString < todayString;
+  };
+
   // Read from Redux only
   const patients = useSelector(selectPatients);
   const storeDepartments = useSelector(selectDepartments);
 
   const [selectedPatientHospitalId, setSelectedPatientHospitalId] =
     useState("");
+  const [patientId, setPatientId] = useState(null);
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [phone, setPhone] = useState("");
@@ -40,7 +64,8 @@ export default function EditPatientAppointment() {
   const [doctors, setDoctors] = useState([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
-  const [appointmentDate, setAppointmentDate] = useState("");
+  // Initialize appointmentDate with today's date
+  const [appointmentDate, setAppointmentDate] = useState(getTodayDate());
   const [appointmentTime, setAppointmentTime] = useState("");
   const [symptoms, setSymptoms] = useState("");
   const [status, setStatus] = useState("SCHEDULED");
@@ -93,14 +118,28 @@ export default function EditPatientAppointment() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Guard: prevent past date selection
+    if (appointmentDate && isPastDate(appointmentDate)) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Date",
+        text: "Cannot select a past date",
+      });
+      return;
+    }
+
+    // Try to find patient in Redux store first
     const patient = (patients || []).find(
       (p) =>
         String(p.patient_hospital_id) === String(selectedPatientHospitalId) ||
         String(p.id) === String(selectedPatientHospitalId)
     );
 
-    const patientId = patient?.id;
-    if (!patientId) {
+    // Use patient from store, or fallback to stored patientId state
+    const patientIdFromStore = patient?.id;
+    const finalPatientId = patientIdFromStore || patientId;
+
+    if (!finalPatientId) {
       Swal.fire({
         icon: "error",
         title: "No patient",
@@ -128,7 +167,7 @@ export default function EditPatientAppointment() {
     }
 
     const payload = {
-      patientId,
+      patientId: finalPatientId,
       doctorId,
       departmentId: Number(selectedDepartmentId) || null,
       appointmentDate,
@@ -168,7 +207,7 @@ export default function EditPatientAppointment() {
         setSelectedDepartmentId("");
         setDoctors([]);
         setSelectedDoctorId("");
-        setAppointmentDate("");
+        setAppointmentDate(getTodayDate());
         setAppointmentTime("");
         setSymptoms("");
         setStatus("SCHEDULED");
@@ -186,6 +225,23 @@ export default function EditPatientAppointment() {
 
   // If editing an appointment, fetch its data and populate the form
   useEffect(() => {
+    // Validate appointment ID - must be a valid number
+    const isValidId = appointmentId &&
+                      appointmentId !== "all" &&
+                      !isNaN(Number(appointmentId)) &&
+                      String(appointmentId).trim().length > 0;
+
+    if (!isValidId) {
+      Swal.fire({
+        icon: "error",
+        title: "Invalid Appointment",
+        text: "Please select a valid appointment to edit",
+      }).then(() => {
+        window.location.replace("/dashboard/view-patient-appointments");
+      });
+      return;
+    }
+
     // Only auto-fetch & populate when the user navigated from the appointments list
     // (clicking Edit). When the page is loaded directly / refreshed we skip populating
     // so patient contact fields remain empty as requested.
@@ -209,6 +265,7 @@ export default function EditPatientAppointment() {
         data.patient?.patient_hospital_id ??
         pid;
       setSelectedPatientHospitalId(patientHospitalId || "");
+      setPatientId(pid || null);
 
       // Find the patient in the store using hospital ID to get full details (gender, address)
       const fullPatient = patients.find(
@@ -270,7 +327,12 @@ export default function EditPatientAppointment() {
 
       setSelectedDepartmentId(dept ? String(dept) : "");
       setSelectedDoctorId(doctor ? String(doctor) : "");
-      setAppointmentDate(data.appointmentDate ?? data.appointment_date ?? "");
+
+      // Set appointment date, but if it's in the past, use today's date
+      const fetchedDate = data.appointmentDate ?? data.appointment_date ?? "";
+      setAppointmentDate(
+        fetchedDate && !isPastDate(fetchedDate) ? fetchedDate : getTodayDate()
+      );
       setAppointmentTime(data.appointmentTime ?? data.appointment_time ?? "");
       setSymptoms(data.symptoms ?? "");
       setStatus(data.status ?? "SCHEDULED");
@@ -359,6 +421,7 @@ export default function EditPatientAppointment() {
         const patientHospitalId =
           data.patient_hospital_id ?? data.patient?.patient_hospital_id ?? pid;
         setSelectedPatientHospitalId(patientHospitalId || "");
+        setPatientId(pid || null);
 
         // Populate patient display/name and contact fields from fetched data
         let patientObj = data.patient || null;
@@ -441,7 +504,12 @@ export default function EditPatientAppointment() {
             // ignore
           }
         }
-        setAppointmentDate(data.appointmentDate ?? data.appointment_date ?? "");
+
+        // Set appointment date, but if it's in the past, use today's date
+        const fetchedDate = data.appointmentDate ?? data.appointment_date ?? "";
+        setAppointmentDate(
+          fetchedDate && !isPastDate(fetchedDate) ? fetchedDate : getTodayDate()
+        );
         setAppointmentTime(data.appointmentTime ?? data.appointment_time ?? "");
         setSymptoms(data.symptoms ?? "");
         setStatus(data.status ?? "SCHEDULED");
@@ -673,7 +741,24 @@ export default function EditPatientAppointment() {
                 className="form-control"
                 required
                 value={appointmentDate}
-                onChange={(e) => setAppointmentDate(e.target.value)}
+                min={getTodayDate()}
+                onChange={(e) => {
+                  const selectedDate = e.target.value;
+                  // Prevent past dates
+                  if (!selectedDate || isPastDate(selectedDate)) {
+                    Swal.fire({
+                      icon: "error",
+                      title: "Invalid Date",
+                      text: "Cannot select a past date. Please select today or a future date.",
+                    });
+                    // Reset to last valid date
+                    setAppointmentDate(lastValidDateRef.current);
+                    return;
+                  }
+                  // Update last valid date when a valid date is selected
+                  lastValidDateRef.current = selectedDate;
+                  setAppointmentDate(selectedDate);
+                }}
               />
             </div>
 
@@ -719,3 +804,4 @@ export default function EditPatientAppointment() {
     </div>
   );
 }
+

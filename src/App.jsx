@@ -83,6 +83,8 @@ import MyProfile from "./components/auth/my-profile/MyProfile.jsx";
 import EditPathologyForm from "./components/reports/pathalogy/edit-pathology-report/EditPathologyForm.jsx";
 import EditRadiologyForm from "./components/reports/radiology/edit-radiology-report/EditRadiologyForm.jsx";
 import ManageInvoice from "./components/invoice/manage-invoices/ManageInvoice.jsx";
+import PatientVisitTable from "./components/patient managment/patient table/PatientVisitTable.jsx";
+import CreatePatientVisit from "./components/patient managment/Patient visit/CreatePatientVisit.jsx";
 
 function SessionManager() {
   const exp = useSelector(selectAuthExpiry);
@@ -438,25 +440,14 @@ function App() {
         },
 
         {
-          path: "ipd/add-patient",
-          element: <AddIpd />,
+          path: "patients/create-patient",
+          element: <CreatePatientVisit />,
         },
 
         {
-          path: "ipd/view-patients",
-          element: <ViewIpd />,
+          path: "patients/table/manage-visits",
+          element: <PatientVisitTable />,
         },
-
-        {
-          path: "emergency/add-patient",
-          element: <AddEmergency />,
-        },
-
-        {
-          path: "emergency/view-patients",
-          element: <ViewEmergency />,
-        },
-
         //settings route
         {
           path: "settings",

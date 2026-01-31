@@ -5,7 +5,7 @@ import {
   fetchPatients,
   selectPatients,
   selectPatientsStatus,
-} from "../../../features/commanSlice";
+} from "../../../features/patientAutoSuggestionSlice";
 import {
   fetchDepartments,
   selectDepartments,
@@ -19,6 +19,12 @@ export default function AddPatientAppointment() {
   const dispatch = useDispatch();
   const patients = useSelector(selectPatients);
   const patientsStatus = useSelector(selectPatientsStatus);
+
+  // Debug: log patients data
+  useEffect(() => {
+    console.log('Patients data:', patients);
+    console.log('Patients status:', patientsStatus);
+  }, [patients, patientsStatus]);
 
   const [selectedPatientHospitalId, setSelectedPatientHospitalId] =
     useState("");
@@ -56,18 +62,13 @@ export default function AddPatientAppointment() {
   useEffect(() => {
     if (!selectedPatientHospitalId) return;
     const p = patients.find(
-      (x) => String(x.patient_hospital_id) === String(selectedPatientHospitalId)
+      (x) => String(x.patientHospitalId) === String(selectedPatientHospitalId)
     );
     if (p) {
       setAge(p.age ?? "");
       setGender(p.gender ?? "");
-      setPhone(p.contactInfo ?? p.emergencyContact ?? "");
-      const addr = p.address
-        ? `${p.address.addressLine || ""}, ${p.address.city || ""}, ${
-            p.address.state || ""
-          } ${p.address.pincode || ""}`
-        : "";
-      setAddress(addr);
+      setPhone(p.contact ?? "");
+      setAddress(p.address ?? "");
     } else {
       setAge("");
       setGender("");
@@ -76,17 +77,38 @@ export default function AddPatientAppointment() {
     }
   }, [selectedPatientHospitalId, patients]);
 
+  // Helper to get today's date in YYYY-MM-DD format
+  const getTodayDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
   // submit handler for appointment creation
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Guard: prevent past date when status is SCHEDULED
+    if (status === "SCHEDULED" && appointmentDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(appointmentDate);
+      if (selectedDate < today) {
+        Swal.fire({
+          icon: "error",
+          title: "Invalid Date",
+          text: "Cannot schedule an appointment for a past date",
+        });
+        return;
+      }
+    }
+
     // resolve patient id from selectedPatientHospitalId
     const patient = (patients || []).find(
       (p) =>
-        String(p.patient_hospital_id) === String(selectedPatientHospitalId) ||
-        String(p.id) === String(selectedPatientHospitalId)
+        String(p.patientHospitalId) === String(selectedPatientHospitalId) ||
+        String(p.patientId) === String(selectedPatientHospitalId)
     );
-    const patientId = patient?.id;
+    const patientId = patient?.patientId;
     if (!patientId) {
       Swal.fire({
         icon: "error",
@@ -132,7 +154,7 @@ export default function AddPatientAppointment() {
 
     // departmentId numeric coercion
     let departmentId = null;
-    if (selectedDepartmentId) {
+    if (selectedDepartmentId && selectedDepartmentId !== "all") {
       const asNumDep = Number(selectedDepartmentId);
       departmentId = Number.isNaN(asNumDep) ? null : asNumDep;
     }
@@ -189,6 +211,66 @@ export default function AddPatientAppointment() {
     }
   };
 
+  // Handle patient search with improved filtering
+  const handlePatientSearch = (q) => {
+    setPatientQuery(q);
+    
+    if (!q) {
+      setSuggestions([]);
+      return;
+    }
+    
+    const low = q.toLowerCase().trim();
+    const searchTerms = low.split(/\s+/).filter(term => term.length > 0);
+    
+    // Ensure patients is an array
+    const patientList = Array.isArray(patients) ? patients : [];
+    
+    // If patients haven't loaded yet, dispatch fetch
+    if (patientList.length === 0 && patientsStatus !== 'loading') {
+      dispatch(fetchPatients());
+    }
+    
+    const list = patientList.filter((p) => {
+      if (!p) return false;
+      
+      // Get patient name - check multiple possible field names
+      const fullName = p.patientName || 
+        `${p.firstName || ''} ${p.lastName || ''}`.trim() || 
+        p.name || 
+        '';
+      
+      // Get hospital ID - check multiple possible field names
+      const hid = String(
+        p.patientHospitalId || 
+        p.patient_hospital_id || 
+        p.hospitalId || 
+        p.id || 
+        ''
+      ).toLowerCase();
+      
+      const fullLower = fullName.toLowerCase();
+      
+      // Match if query is contained in name or hospital ID
+      // Also check if each search term matches any part of the name
+      const nameContains = fullLower.includes(low);
+      const nameStartsWith = fullLower.startsWith(low);
+      
+      // Check if all search terms match (for multi-word searches like "tejas ramesh")
+      const allTermsMatch = searchTerms.length > 0 && 
+        searchTerms.every(term => 
+          fullLower.includes(term) || 
+          fullName.toLowerCase().split(/\s+/).some(word => word.startsWith(term))
+        );
+      
+      const idMatches = hid.includes(low);
+      
+      return nameContains || nameStartsWith || allTermsMatch || idMatches;
+    });
+    
+    setSuggestions(list.slice(0, 8));
+  };
+
   return (
     <div className="full-width-card card shadow border-0">
       {/* Header */}
@@ -216,22 +298,7 @@ export default function AddPatientAppointment() {
                 className="form-control"
                 placeholder="Search by name or hospital id"
                 value={patientQuery}
-                onChange={(e) => {
-                  const q = e.target.value;
-                  setPatientQuery(q);
-                  if (!q) return setSuggestions([]);
-                  const low = q.toLowerCase();
-                  const list = (patients || []).filter((p) => {
-                    const full = `${p.firstName || ""} ${
-                      p.lastName || ""
-                    }`.toLowerCase();
-                    const hid = String(
-                      p.patient_hospital_id || ""
-                    ).toLowerCase();
-                    return full.includes(low) || hid.includes(low);
-                  });
-                  setSuggestions(list.slice(0, 8));
-                }}
+                onChange={(e) => handlePatientSearch(e.target.value)}
               />
 
               {suggestions.length > 0 && (
@@ -241,23 +308,23 @@ export default function AddPatientAppointment() {
                 >
                   {suggestions.map((p) => (
                     <li
-                      key={p.patient_hospital_id || p.id}
+                      key={p.patientHospitalId || p.patient_hospital_id || p.patientId || p.id}
                       className="list-group-item list-group-item-action"
                       onClick={() => {
                         setSelectedPatientHospitalId(
-                          p.patient_hospital_id || p.id
+                          p.patientHospitalId || p.patient_hospital_id
                         );
                         setPatientQuery(
-                          `${p.firstName} ${p.lastName} (${p.patient_hospital_id})`
+                          `${p.patientName} (${p.patientHospitalId || p.patient_hospital_id})`
                         );
                         setSuggestions([]);
                       }}
                     >
                       <div className="fw-semibold">
-                        {p.firstName} {p.lastName}
+                        {p.patientName}
                       </div>
                       <div className="small text-muted">
-                        {p.patient_hospital_id}
+                        {p.patientHospitalId || p.patient_hospital_id}
                       </div>
                     </li>
                   ))}
@@ -331,7 +398,12 @@ export default function AddPatientAppointment() {
                   setSelectedDepartmentId(id);
                   setSelectedDoctorId("");
                   setDoctors([]);
-                  if (!id) return;
+                  if (!id || id === "all") return;
+                  // Guard: ensure id is numeric before making API call
+                  if (isNaN(Number(id))) {
+                    console.warn("Invalid department ID:", id);
+                    return;
+                  }
                   try {
                     const res = await axios.get(`${API_BASE_URL}/doctor/${id}`);
                     const list = Array.isArray(res.data)
@@ -399,6 +471,7 @@ export default function AddPatientAppointment() {
                 className="form-control"
                 required
                 value={appointmentDate}
+                min={status === "SCHEDULED" ? getTodayDate() : undefined}
                 onChange={(e) => setAppointmentDate(e.target.value)}
               />
             </div>

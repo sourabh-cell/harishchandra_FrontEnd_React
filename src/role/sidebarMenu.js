@@ -140,8 +140,8 @@ export const sidebarMenu = [
     ],
     children: [
       {
-        title: "OPD",
-        collapseId: "opd-section",
+        title: "Patient Registration",
+        collapseId: "patient-registration-section",
         children: [
           {
             title: "Add Patient",
@@ -149,44 +149,29 @@ export const sidebarMenu = [
             permissions: ["PATIENT_ADD"],
           },
           {
-            title: "View Patients",
+            title: "Manage Patients",
             path: "/dashboard/opd/view-patients",
             permissions: ["PATIENT_LIST", "PATIENT_UPDATE", "PATIENT_DELETE"],
           },
         ],
       },
       {
-        title: "IPD",
-        collapseId: "ipd-section",
+        title: "Patient Visits",
+        collapseId: "patient-visits-section",
         children: [
           {
-            title: "Add Patient",
-            path: "/dashboard/ipd/add-patient",
+            title: "Create New Visit",
+            path: "patients/create-patient",
             permissions: ["PATIENT_ADD"],
           },
           {
-            title: "View Patients",
-            path: "/dashboard/ipd/view-patients",
+            title: "Manage Visits",
+            path: "/dashboard/patients/table/manage-visits",
             permissions: ["PATIENT_LIST", "PATIENT_UPDATE", "PATIENT_DELETE"],
           },
         ],
       },
-      {
-        title: "Emergency",
-        collapseId: "emergency-section",
-        children: [
-          {
-            title: "Add Patient",
-            path: "/dashboard/emergency/add-patient",
-            permissions: ["PATIENT_ADD"],
-          },
-          {
-            title: "View Patients",
-            path: "/dashboard/emergency/view-patients",
-            permissions: ["PATIENT_LIST", "PATIENT_UPDATE", "PATIENT_DELETE"],
-          },
-        ],
-      },
+      
     ],
   },
 
