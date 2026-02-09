@@ -23,6 +23,9 @@ import invoiceReducer from "../features/InvoiceSlice";
 import patientReducer from "../features/patientAutoSuggestionSlice";
 import createpatientvisitsReducer from "../features/createpatientvisitsSlice";
 import patientVisitTableReducer from "../features/patientVisitTableSlice";
+import patientRegistrationReducer from "../features/patientRegistrationSlice";
+import medicineReducer from "../features/medicineSlice";
+import patientRegistrationListReducer from "../features/patientRegistrationListSlice";
 
 export const store = configureStore({
   reducer: {
@@ -50,6 +53,9 @@ export const store = configureStore({
     patients: patientReducer,
     patientVisits: createpatientvisitsReducer,
     patientVisitTable: patientVisitTableReducer,
+    patientRegistration: patientRegistrationReducer,
+    patientRegistrationList: patientRegistrationListReducer,
+    medicine: medicineReducer,
   },
 });
 

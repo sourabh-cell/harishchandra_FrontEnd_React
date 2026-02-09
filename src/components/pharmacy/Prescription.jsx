@@ -1,4 +1,4 @@
-import React from "react";
+import React from "react"; 
 
 function Prescription() {
   const themeColor = "#01C0C8";

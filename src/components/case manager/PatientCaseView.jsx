@@ -121,8 +121,10 @@ const PatientCaseView = () => {
     const patient = {
       ...p,
       medications: p.medications || [],
-      clinical: p.clinical || {},
-      clinical: { ...p.clinical, vitalsHistory: p.clinical?.vitalsHistory || [] }
+      clinical: {
+        ...p.clinical,
+        vitalsHistory: p.clinical?.vitalsHistory || []
+      }
     };
 
     setCurrentPatient(patient);

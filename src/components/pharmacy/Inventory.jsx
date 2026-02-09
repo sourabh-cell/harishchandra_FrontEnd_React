@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; 
 
 const Inventory = () => {
   // Sample new medicine data to pre-fill in the form

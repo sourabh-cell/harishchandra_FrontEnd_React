@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from "react"; 
 import Medicine1 from "./Medicine1";
 import Inventory from "./Inventory";
 import Prescription from "./Prescription";
