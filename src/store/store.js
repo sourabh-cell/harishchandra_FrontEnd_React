@@ -22,6 +22,7 @@ import radiologyReducer from "../features/radiologySlice";
 import invoiceReducer from "../features/InvoiceSlice";
 import patientReducer from "../features/patientAutoSuggestionSlice";
 import createpatientvisitsReducer from "../features/createpatientvisitsSlice";
+import patientVisitTableReducer from "../features/patientVisitTableSlice";
 
 export const store = configureStore({
   reducer: {
@@ -48,6 +49,7 @@ export const store = configureStore({
     invoice: invoiceReducer,
     patients: patientReducer,
     patientVisits: createpatientvisitsReducer,
+    patientVisitTable: patientVisitTableReducer,
   },
 });
 

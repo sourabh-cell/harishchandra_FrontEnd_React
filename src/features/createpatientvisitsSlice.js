@@ -1,29 +1,30 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import axios from "axios";
 
-const API_URL = "/api/patient-visits";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_URL = `${API_BASE_URL}/patient-visits`;
 
 // Async thunk for creating patient visit (POST)
 export const createPatientVisit = createAsyncThunk(
   "patientVisits/create",
-  async (visitData, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(visitData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to create patient visit");
+      const res = await axios.post(API_URL, payload);
+      return res.data;
+    } catch (err) {
+      // Extract message from various error formats
+      const errorData = err.response?.data;
+      let errorMessage = err.message || "Failed to create patient visit";
+      
+      if (typeof errorData === "string") {
+        errorMessage = errorData;
+      } else if (errorData?.message) {
+        errorMessage = errorData.message;
+      } else if (errorData?.error) {
+        errorMessage = errorData.error;
       }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -33,16 +34,10 @@ export const fetchPatientVisits = createAsyncThunk(
   "patientVisits/fetchAll",
   async ({ page = 1, limit = 10 } = {}, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}?page=${page}&limit=${limit}`);
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch patient visits");
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await axios.get(`${API_URL}?page=${page}&limit=${limit}`);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
     }
   }
 );
@@ -52,22 +47,10 @@ export const updatePatientVisit = createAsyncThunk(
   "patientVisits/update",
   async ({ id, updateData }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update patient visit");
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await axios.put(`${API_URL}/${id}`, updateData);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
     }
   }
 );
@@ -77,17 +60,10 @@ export const deletePatientVisit = createAsyncThunk(
   "patientVisits/delete",
   async (id, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete patient visit");
-      }
-
+      await axios.delete(`${API_URL}/${id}`);
       return id;
-    } catch (error) {
-      return rejectWithValue(error.message);
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
     }
   }
 );
@@ -97,16 +73,10 @@ export const searchPatientByHospitalId = createAsyncThunk(
   "patientVisits/searchByHospitalId",
   async (hospitalId, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${API_URL}/search?hospitalId=${hospitalId}`);
-      
-      if (!response.ok) {
-        throw new Error("Patient not found");
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      const response = await axios.get(`${API_URL}/search?hospitalId=${hospitalId}`);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data || err.message);
     }
   }
 );

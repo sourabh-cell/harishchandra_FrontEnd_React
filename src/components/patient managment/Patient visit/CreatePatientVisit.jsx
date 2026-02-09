@@ -7,7 +7,8 @@ import {
   clearSuccess,
 } from "../../../features/createpatientvisitsSlice";
 import { selectPatients, fetchPatients } from "../../../features/patientAutoSuggestionSlice";
-import { selectDepartments, fetchDepartments } from "../../../features/commanSlice";
+import { selectDepartments, fetchDepartments, fetchDoctorNameIds, selectDoctorNameIds } from "../../../features/commanSlice";
+import Swal from "sweetalert2";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -18,6 +19,7 @@ function CreatePatientVisit() {
   );
   const patients = useSelector(selectPatients);
   const storeDepartments = useSelector(selectDepartments);
+  const doctorNameIds = useSelector(selectDoctorNameIds);
 
   const [formData, setFormData] = useState({
     patientId: "",
@@ -31,7 +33,6 @@ function CreatePatientVisit() {
     visitDate: "",
     symptoms: "",
     reason: "",
-    appointmentId: "",
     // Display fields
     patientHospitalId: "",
     patientName: "",
@@ -44,11 +45,46 @@ function CreatePatientVisit() {
   const [selectedPatientId, setSelectedPatientId] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [referredByQuery, setReferredByQuery] = useState("");
+  const [referredBySuggestions, setReferredBySuggestions] = useState([]);
+  const [referredToQuery, setReferredToQuery] = useState("");
+  const [referredToSuggestions, setReferredToSuggestions] = useState([]);
 
-  // Fetch patients and departments on mount
+  // Reset form function
+  const resetForm = () => {
+    setFormData({
+      patientId: "",
+      visitType: "",
+      status: "",
+      departmentId: "",
+      doctorId: "",
+      referredByDoctorId: "",
+      referredToDoctorId: "",
+      referredToDepartmentId: "",
+      visitDate: "",
+      symptoms: "",
+      reason: "",
+      // Display fields
+      patientHospitalId: "",
+      patientName: "",
+      age: "",
+      contact: "",
+    });
+    setPatientQuery("");
+    setSelectedPatientId(null);
+    setSuggestions([]);
+    setDoctors([]);
+    setReferredByQuery("");
+    setReferredBySuggestions([]);
+    setReferredToQuery("");
+    setReferredToSuggestions([]);
+  };
+
+  // Fetch patients, departments, and doctors on mount
   useEffect(() => {
     dispatch(fetchPatients());
     dispatch(fetchDepartments());
+    dispatch(fetchDoctorNameIds());
   }, [dispatch]);
 
   // Sync departments from store
@@ -104,6 +140,66 @@ function CreatePatientVisit() {
     }));
   };
 
+  // Handle referred by doctor search
+  const handleReferredBySearch = (e) => {
+    const query = e.target.value;
+    setReferredByQuery(query);
+    setFormData((prev) => ({ ...prev, referredByDoctorId: "" }));
+
+    if (!query) {
+      setReferredBySuggestions([]);
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const filtered = (doctorNameIds || []).filter((doc) => {
+      const name = (doc.name || "").toLowerCase();
+      return name.includes(lowerQuery);
+    });
+
+    setReferredBySuggestions(filtered.slice(0, 8));
+  };
+
+  // Handle referred by doctor selection
+  const handleSelectReferredBy = (doctor) => {
+    setFormData((prev) => ({
+      ...prev,
+      referredByDoctorId: doctor.id
+    }));
+    setReferredByQuery(doctor.name);
+    setReferredBySuggestions([]);
+  };
+
+  // Handle referred to doctor search
+  const handleReferredToSearch = (e) => {
+    const query = e.target.value;
+    setReferredToQuery(query);
+    setFormData((prev) => ({ ...prev, referredToDoctorId: "" }));
+
+    if (!query) {
+      setReferredToSuggestions([]);
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const filtered = (doctorNameIds || []).filter((doc) => {
+      const name = (doc.name || "").toLowerCase();
+      return name.includes(lowerQuery);
+    });
+
+    setReferredToSuggestions(filtered.slice(0, 8));
+  };
+
+  // Handle referred to doctor selection
+  const handleSelectReferredTo = (doctor) => {
+    setFormData((prev) => ({
+      ...prev,
+      referredToDoctorId: doctor.id
+    }));
+    setReferredToQuery(doctor.name);
+    setReferredToSuggestions([]);
+  };
+
   // Handle department change - fetch doctors
   const handleDepartmentChange = async (e) => {
     const departmentId = e.target.value;
@@ -129,7 +225,7 @@ function CreatePatientVisit() {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     // Prepare payload matching backend structure
@@ -145,10 +241,49 @@ function CreatePatientVisit() {
       visitDate: formData.visitDate,
       symptoms: formData.symptoms,
       reason: formData.reason,
-      appointmentId: formData.appointmentId ? Number(formData.appointmentId) : null,
+      appointmentId: null,
     };
 
-    dispatch(createPatientVisit(payload));
+    try {
+      await dispatch(createPatientVisit(payload)).unwrap();
+      Swal.fire({ 
+        icon: "success", 
+        title: "Patient visit created successfully" 
+      }).then(() => {
+        resetForm();
+        setTimeout(() => {
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+          window.scrollTo(0, 0);
+        }, 100);
+      });
+    } catch (err) {
+      // Handle different error formats
+      let errorMessage = "An error occurred";
+      if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.data?.message) {
+        errorMessage = err.data.message;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      Swal.fire({
+        icon: "error",
+        title: "Failed to create patient visit",
+        text: errorMessage,
+      }).then(() => {
+        dispatch(clearError());
+        resetForm();
+        setTimeout(() => {
+          document.documentElement.scrollTop = 0;
+          document.body.scrollTop = 0;
+          window.scrollTo(0, 0);
+        }, 100);
+      });
+    }
   };
 
   return (
@@ -360,28 +495,74 @@ function CreatePatientVisit() {
               </select>
             </div>
 
-            <div className="col-md-6">
+            <div className="col-md-6 position-relative">
               <label className="form-label">Referred By Doctor</label>
-              <select
-                className="form-select"
-                name="referredByDoctorId"
-                value={formData.referredByDoctorId}
-                onChange={handleChange}
-              >
-                <option value="">Select</option>
-              </select>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search doctor name"
+                value={referredByQuery}
+                onChange={handleReferredBySearch}
+              />
+              {referredBySuggestions.length > 0 && (
+                <ul
+                  className="list-group position-absolute w-100"
+                  style={{
+                    zIndex: 1000,
+                    maxHeight: 200,
+                    overflowY: "auto",
+                  }}
+                >
+                  {referredBySuggestions.map((doc) => (
+                    <li
+                      key={doc.id}
+                      className="list-group-item list-group-item-action"
+                      onClick={() => handleSelectReferredBy(doc)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <div className="fw-semibold">{doc.name}</div>
+                      <div className="small text-muted">
+                        {doc.specialization} | {doc.departmentName}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
-            <div className="col-md-6">
+            <div className="col-md-6 position-relative">
               <label className="form-label">Referred To Doctor</label>
-              <select
-                className="form-select"
-                name="referredToDoctorId"
-                value={formData.referredToDoctorId}
-                onChange={handleChange}
-              >
-                <option value="">Select</option>
-              </select>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search doctor name"
+                value={referredToQuery}
+                onChange={handleReferredToSearch}
+              />
+              {referredToSuggestions.length > 0 && (
+                <ul
+                  className="list-group position-absolute w-100"
+                  style={{
+                    zIndex: 1000,
+                    maxHeight: 200,
+                    overflowY: "auto",
+                  }}
+                >
+                  {referredToSuggestions.map((doc) => (
+                    <li
+                      key={doc.id}
+                      className="list-group-item list-group-item-action"
+                      onClick={() => handleSelectReferredTo(doc)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <div className="fw-semibold">{doc.name}</div>
+                      <div className="small text-muted">
+                        {doc.specialization} | {doc.departmentName}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div className="col-md-6">
@@ -394,6 +575,7 @@ function CreatePatientVisit() {
                 name="visitDate"
                 value={formData.visitDate}
                 onChange={handleChange}
+                min={new Date().toISOString().split('T')[0]}
                 required
               />
             </div>
@@ -426,16 +608,6 @@ function CreatePatientVisit() {
               />
             </div>
 
-            <div className="col-md-6">
-              <label className="form-label">Appointment ID</label>
-              <input
-                type="number"
-                className="form-control"
-                name="appointmentId"
-                value={formData.appointmentId}
-                onChange={handleChange}
-              />
-            </div>
           </div>
 
           {/* Buttons */}
