@@ -210,7 +210,7 @@ export const sidebarMenu = [
       },
       {
         title: "View Case Studies",
-        path: "/dashboard/view-case-studies",
+        path: "/dashboard/table-case-study",
         permissions: ["CASE_STUDY_LIST"],
       },
     ],
@@ -272,22 +272,7 @@ export const sidebarMenu = [
         ],
       },
 
-      {
-        title: "Finance Reports",
-        collapseId: "finance-reports-section",
-        children: [
-          {
-            title: "Add Report",
-            path: "/dashboard/add-finance-report",
-            permissions: ["FINANCE_ADD_INVOICE"],
-          },
-          {
-            title: "Manage Reports",
-            path: "/dashboard/manage-finance-reports",
-            permissions: ["FINANCIAL_REPORTS", "FINANCE_UPDATE_INVOICE"],
-          },
-        ],
-      },
+     
     ],
   },
 
