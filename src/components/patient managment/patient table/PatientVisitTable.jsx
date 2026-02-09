@@ -548,7 +548,6 @@ function PatientVisitTable() {
             <div className="modal-footer">
               <button
                 className="btn btn-success"
-                data-bs-dismiss="modal"
                 onClick={handleUpdate}
               >
                 Update
