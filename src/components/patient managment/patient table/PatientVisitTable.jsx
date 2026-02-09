@@ -9,6 +9,7 @@ import {
   selectLoading,
   selectError,
   selectSuccess,
+  clearSuccessOnUnmount,
 } from "../../../features/patientVisitTableSlice";
 import {
   selectDepartments,
@@ -104,6 +105,11 @@ function PatientVisitTable() {
       });
       setUpdateSuccess(false);
     }
+    // Cleanup: reset states on unmount
+    return () => {
+      setUpdateSuccess(false);
+      dispatch(clearSuccessOnUnmount());
+    };
   }, [updateSuccess]);
 
   // Handle patient search
@@ -186,9 +192,13 @@ function PatientVisitTable() {
         departmentId: editData.departmentId ? Number(editData.departmentId) : null,
         doctorId: editData.doctorId ? Number(editData.doctorId) : null,
         visitDate: editData.visitDate,
+        visitType: editData.visitType,
         symptoms: editData.symptoms,
         reason: editData.reason,
       };
+
+      console.log("Update payload:", updatePayload);
+      console.log("Visit ID:", editData.id);
 
       try {
         const result = await dispatch(

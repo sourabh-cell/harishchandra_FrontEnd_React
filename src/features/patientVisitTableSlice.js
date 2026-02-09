@@ -35,9 +35,13 @@ export const updatePatientVisit = createAsyncThunk(
   "patientVisitTable/update",
   async ({ visitId, updateData }, { rejectWithValue }) => {
     try {
+      console.log("Axios PUT URL:", `${API_BASE_URL}/patient-visits/update/${visitId}`);
+      console.log("Axios PUT data:", updateData);
       const response = await axios.put(`${API_BASE_URL}/patient-visits/update/${visitId}`, updateData);
+      console.log("Axios response:", response);
       return response.data;
     } catch (err) {
+      console.error("Axios error:", err);
       return rejectWithValue(err.response?.data || err.message);
     }
   }
@@ -128,6 +132,11 @@ export const {
   clearSuccess,
   clearVisits,
 } = patientVisitTableSlice.actions;
+
+// Clear success on unmount
+export const clearSuccessOnUnmount = () => (dispatch) => {
+  dispatch(clearSuccess());
+};
 
 // Selectors
 export const selectVisits = (state) => state.patientVisitTable.visits;
