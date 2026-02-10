@@ -1,7 +1,157 @@
-import React from "react"; 
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  fetchAllPharmacyPrescriptions,
+  selectPharmacyPrescriptions,
+  selectFetchPharmacyPrescriptionsStatus,
+  selectFetchPharmacyPrescriptionsError,
+} from "../../features/pharmacyPrescriptionSlice";
 
 function Prescription() {
+  const dispatch = useDispatch();
+  const prescriptions = useSelector(selectPharmacyPrescriptions);
+  const fetchStatus = useSelector(selectFetchPharmacyPrescriptionsStatus);
+  const fetchError = useSelector(selectFetchPharmacyPrescriptionsError);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
+
   const themeColor = "#01C0C8";
+
+  useEffect(() => {
+    if (fetchStatus === "idle") {
+      dispatch(fetchAllPharmacyPrescriptions());
+    }
+  }, [fetchStatus, dispatch]);
+
+  const handleViewPrescription = (prescription) => {
+    setSelectedPrescription(prescription);
+  };
+
+  const handlePrint = () => {
+    const printContent = document.getElementById("prescriptionPrintContent").innerHTML;
+    const printWindow = window.open("", "", "width=800,height=600");
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Prescription - ${selectedPrescription?.prescriptionId || ""}</title>
+          <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+          <style>
+            @page { margin: 0.5cm; }
+            body { 
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+              padding: 15px;
+              font-size: 14px;
+            }
+            .prescription-header {
+              text-align: center;
+              border-bottom: 2px solid #01C0C8;
+              padding-bottom: 15px;
+              margin-bottom: 20px;
+            }
+            .hospital-name {
+              font-size: 24px;
+              font-weight: bold;
+              color: #01C0C8;
+              margin-bottom: 5px;
+            }
+            .hospital-address {
+              font-size: 12px;
+              color: #666;
+            }
+            .prescription-title {
+              font-size: 18px;
+              font-weight: bold;
+              text-align: center;
+              background-color: #f8f9fa;
+              padding: 10px;
+              margin-bottom: 20px;
+              border-radius: 5px;
+            }
+            .patient-info {
+              background-color: #f8f9fa;
+              padding: 15px;
+              border-radius: 5px;
+              margin-bottom: 20px;
+            }
+            .patient-info-row {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 8px;
+            }
+            .patient-info-row:last-child {
+              margin-bottom: 0;
+            }
+            .patient-info-label {
+              font-weight: 600;
+              color: #333;
+            }
+            .diagnosis-section {
+              margin-bottom: 20px;
+            }
+            .diagnosis-label {
+              font-weight: 600;
+              color: #333;
+              margin-bottom: 5px;
+            }
+            .medicine-table {
+              margin-bottom: 20px;
+            }
+            .medicine-table th {
+              background-color: #01C0C8;
+              color: white;
+              text-align: center;
+            }
+            .medicine-table td {
+              vertical-align: middle;
+            }
+            .notes-section {
+              background-color: #fff3cd;
+              padding: 15px;
+              border-radius: 5px;
+              border-left: 4px solid #ffc107;
+            }
+            .signature-section {
+              margin-top: 40px;
+              text-align: right;
+            }
+            .signature-line {
+              border-top: 1px solid #333;
+              width: 200px;
+              display: inline-block;
+              margin-top: 5px;
+            }
+            .footer {
+              margin-top: 30px;
+              text-align: center;
+              font-size: 11px;
+              color: #666;
+              border-top: 1px solid #ddd;
+              padding-top: 10px;
+            }
+          </style>
+        </head>
+        <body>
+          ${printContent}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      DISPENSED: "bg-success",
+      PENDING: "bg-warning text-dark",
+      FULFILLED: "bg-primary",
+      UNAVAILABLE: "bg-danger",
+      PARTIAL: "bg-info",
+    };
+    return badges[status] || "bg-secondary";
+  };
 
   return (
     <div className="tab-content">
@@ -11,14 +161,6 @@ function Prescription() {
           <h5 className="mb-0 fw-semibold">
             <i className="fa-solid fa-file-prescription me-2"></i> View Prescriptions from Doctors
           </h5>
-          <button
-            className="btn btn-outline-primary btn-sm"
-            data-bs-toggle="modal"
-            data-bs-target="#prescriptionModal"
-            style={{ borderColor: themeColor, color: themeColor }}
-          >
-            <i className="fa-solid fa-plus me-1"></i> Add Prescription
-          </button>
         </div>
 
         {/* 📋 Prescription Table */}
@@ -35,162 +177,177 @@ function Prescription() {
                 <th className="no-print">Actions</th>
               </tr>
             </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* 🧾 ADD / EDIT PRESCRIPTION MODAL */}
-      <div className="modal fade" id="prescriptionModal" tabIndex={-1} aria-hidden="true">
-        <div className="modal-dialog modal-lg">
-          <div className="modal-content border-0 shadow-lg">
-            <form id="prescriptionForm">
-              <div
-                className="modal-header text-white"
-                style={{ backgroundColor: themeColor }}
-              >
-                <h5 className="modal-title">
-                  <i className="fa-solid fa-notes-medical me-2"></i> Add Prescription
-                </h5>
-                <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" />
-              </div>
-
-              <div className="modal-body">
-                <div className="row g-3">
-                  <div className="col-md-4">
-                    <label className="form-label">Prescription ID</label>
-                    <input
-                      type="text"
-                      id="prescId"
-                      className="form-control"
-                      placeholder="PR001"
-                      required
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Patient Name</label>
-                    <input
-                      type="text"
-                      id="prescPatient"
-                      className="form-control"
-                      placeholder="John Doe"
-                      required
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label">Doctor Name</label>
-                    <input
-                      type="text"
-                      id="prescDoctor"
-                      className="form-control"
-                      placeholder="Dr. Smith"
-                      required
-                    />
-                  </div>
-
-                  {/* 💊 Medicine List */}
-                  <div className="col-12">
-                    <label className="form-label">Medicines</label>
-                    <div id="medicineList">
-                      <div className="row g-2 medicine-row">
-                        <div className="col-md-5">
-                          <input
-                            type="text"
-                            className="form-control med-name"
-                            placeholder="Medicine Name"
-                            required
-                          />
-                        </div>
-                        <div className="col-md-3">
-                          <input
-                            type="number"
-                            className="form-control med-qty"
-                            placeholder="Qty"
-                            min={1}
-                            required
-                          />
-                        </div>
-                        <div className="col-md-3">
-                          <input
-                            type="text"
-                            className="form-control med-strength"
-                            placeholder="Strength (e.g., 500mg)"
-                          />
-                        </div>
-                        <div className="col-md-1 d-flex align-items-center">
-                          <button type="button" className="btn btn-danger btn-sm remove-med">
-                            <i className="fa-solid fa-trash"></i>
-                          </button>
-                        </div>
-                      </div>
+            <tbody>
+              {fetchStatus === "loading" && (
+                <tr>
+                  <td colSpan="7" className="text-center py-4">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
                     </div>
-
-                    <button
-                      type="button"
-                      id="addMedicineBtn"
-                      className="btn btn-outline-primary btn-sm mt-2"
-                      style={{ borderColor: themeColor, color: themeColor }}
-                    >
-                      <i className="fa-solid fa-plus me-1"></i> Add Medicine
-                    </button>
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label">Date</label>
-                    <input type="date" id="prescDate" className="form-control" required />
-                  </div>
-                </div>
-              </div>
-
-              <div className="modal-footer justify-content-center">
-                <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn"
-                  style={{ backgroundColor: themeColor, color: "#fff", border: 0 }}
-                >
-                  <i className="fa-solid fa-save me-1"></i> Save
-                </button>
-              </div>
-            </form>
-          </div>
+                  </td>
+                </tr>
+              )}
+              {fetchStatus === "failed" && (
+                <tr>
+                  <td colSpan="7" className="text-center py-4 text-danger">
+                    {fetchError || "Failed to load prescriptions"}
+                  </td>
+                </tr>
+              )}
+              {fetchStatus === "succeeded" && prescriptions.length === 0 && (
+                <tr>
+                  <td colSpan="7" className="text-center py-4">
+                    No prescriptions found
+                  </td>
+                </tr>
+              )}
+              {fetchStatus === "succeeded" &&
+                prescriptions.map((prescription, index) => (
+                  <tr key={prescription.id}>
+                    <td className="text-center">{index + 1}</td>
+                    <td className="text-center">{prescription.prescriptionId}</td>
+                    <td>{prescription.patientName}</td>
+                    <td>{prescription.doctorName}</td>
+                    <td className="text-center">{prescription.date}</td>
+                    <td className="text-center">
+                      <span className={`badge ${getStatusBadge(prescription.status)}`}>
+                        {prescription.status}
+                      </span>
+                    </td>
+                    <td className="text-center no-print">
+                      <button
+                        className="btn btn-sm btn-info text-white me-1"
+                        data-bs-toggle="modal"
+                        data-bs-target="#prescriptionDetailsModal"
+                        onClick={() => handleViewPrescription(prescription)}
+                      >
+                        <i className="fa-solid fa-eye"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* 📋 PRESCRIPTION DETAILS MODAL */}
       <div className="modal fade" id="prescriptionDetailsModal" tabIndex={-1} aria-hidden="true">
         <div className="modal-dialog modal-lg modal-dialog-centered">
-          <div className="modal-content border-0 shadow-lg">
-            <div
-              className="modal-header text-white"
-              style={{ backgroundColor: themeColor }}
-            >
-              <h5 className="modal-title fw-semibold">
-                <i className="fa-solid fa-file-prescription me-2"></i> Prescription Details
-              </h5>
-              <button type="button" className="btn-close btn-close-white" data-bs-dismiss="modal" />
+          <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "10px", overflow: "hidden" }}>
+            {/* Modal Body with Prescription Layout */}
+            <div className="modal-body p-0">
+              {selectedPrescription ? (
+                <div id="prescriptionPrintContent">
+                  {/* Hospital Header */}
+                  <div className="prescription-header" style={{ backgroundColor: "#f8f9fa", padding: "20px", margin: 0 }}>
+                    <div className="hospital-name" style={{ fontSize: "28px" }}>HARISHCHANDRA HOSPITAL</div>
+                    <div className="hospital-address">
+                      Near City Center, Main Road, Mumbai - 400001<br />
+                      Phone: +91 98765 43210 | Email: info@harishchandra.com
+                    </div>
+                  </div>
+
+                  {/* Prescription Title */}
+                  <div className="prescription-title" style={{ margin: "15px 20px" }}>
+                    PHARMACY PRESCRIPTION
+                  </div>
+
+                  {/* Patient Info */}
+                  <div className="patient-info" style={{ margin: "0 20px 15px 20px" }}>
+                    <div className="patient-info-row">
+                      <span><span className="patient-info-label">Prescription ID:</span> #{selectedPrescription.prescriptionId}</span>
+                      <span><span className="patient-info-label">Date:</span> {selectedPrescription.date}</span>
+                    </div>
+                    <div className="patient-info-row">
+                      <span><span className="patient-info-label">Patient Name:</span> {selectedPrescription.patientName}</span>
+                      <span><span className="patient-info-label">Age:</span> {selectedPrescription.patientAge} years</span>
+                    </div>
+                    <div className="patient-info-row">
+                      <span><span className="patient-info-label">Doctor:</span> {selectedPrescription.doctorName}</span>
+                      <span><span className="patient-info-label">Status:</span>{" "}
+                        <span className={`badge ${getStatusBadge(selectedPrescription.status)}`}>
+                          {selectedPrescription.status}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Diagnosis */}
+                  <div className="diagnosis-section" style={{ margin: "0 20px 15px 20px" }}>
+                    <div className="diagnosis-label">Diagnosis:</div>
+                    <div>{selectedPrescription.diagnosis}</div>
+                  </div>
+
+                  {/* Medicines Table */}
+                  <div className="medicine-table" style={{ margin: "0 20px 15px 20px" }}>
+                    <div className="diagnosis-label">Prescribed Medicines:</div>
+                    <table className="table table-bordered table-sm" style={{ marginBottom: 0 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: "50px", textAlign: "center", backgroundColor: "#01C0C8", color: "white" }}>#</th>
+                          <th style={{ backgroundColor: "#01C0C8", color: "white" }}>Medicine Name</th>
+                          <th style={{ width: "120px", backgroundColor: "#01C0C8", color: "white" }}>Duration</th>
+                          <th style={{ width: "180px", backgroundColor: "#01C0C8", color: "white" }}>Frequency</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPrescription.items && selectedPrescription.items.length > 0 ? (
+                          selectedPrescription.items.map((item, index) => (
+                            <tr key={item.id || index}>
+                              <td style={{ textAlign: "center" }}>{index + 1}</td>
+                              <td><strong>{item.medicineName}</strong></td>
+                              <td>{item.duration || "-"}</td>
+                              <td>{item.frequency || "-"}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="4" className="text-center">
+                              No medicines prescribed
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Notes */}
+                  {selectedPrescription.notes && (
+                    <div className="notes-section" style={{ margin: "0 20px 15px 20px" }}>
+                      <strong><i className="fa-solid fa-clipboard-list me-2"></i>Special Instructions:</strong>
+                      <div className="mt-2">{selectedPrescription.notes}</div>
+                    </div>
+                  )}
+
+                  {/* Signature */}
+                  <div className="signature-section" style={{ margin: "30px 20px 20px 20px", textAlign: "right" }}>
+                    <div className="signature-line" style={{ display: "inline-block", borderTop: "1px solid #333", width: "200px", marginTop: "5px" }}></div>
+                    <div style={{ marginTop: "5px" }}>Doctor{"'"}s Signature</div>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="footer" style={{ backgroundColor: "#f8f9fa", padding: "15px", textAlign: "center", fontSize: "11px", color: "#666", borderTop: "1px solid #ddd" }}>
+                    This prescription is generated electronically. Please consult your doctor before taking any medicines.<br />
+                    Powered by HarishChandra Hospital Management System
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-muted">No prescription data available</p>
+                </div>
+              )}
             </div>
 
-            <div className="modal-body">
-              <div id="prescriptionDetailsContent" />
-            </div>
-
-            <div className="modal-footer justify-content-center flex-wrap gap-2">
-              <button className="btn btn-success" id="dispenseBtn">
+            {/* Modal Footer with Buttons */}
+            <div className="modal-footer" style={{ backgroundColor: "#f8f9fa", borderTop: "1px solid #ddd" }}>
+              <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
+                <i className="fa-solid fa-times me-1"></i> Close
+              </button>
+              <button className="btn btn-success" id="dispenseBtn" style={{ marginLeft: "10px" }}>
                 <i className="fa-solid fa-pills me-1"></i> Dispense
               </button>
-              <button className="btn btn-warning text-dark" id="partialBtn">
-                <i className="fa-solid fa-hourglass-half me-1"></i> Partial
-              </button>
-              <button className="btn btn-primary" id="fulfillBtn">
-                <i className="fa-solid fa-circle-check me-1"></i> Fulfilled
-              </button>
-              <button className="btn btn-danger" id="unavailableBtn">
-                <i className="fa-solid fa-circle-exclamation me-1"></i> Unavailable
-              </button>
-              <button className="btn btn-info text-white" id="printDetailsBtn">
+              <button className="btn btn-info text-white" id="printDetailsBtn" onClick={handlePrint} style={{ marginLeft: "10px" }}>
                 <i className="fa-solid fa-print me-1"></i> Print
               </button>
             </div>

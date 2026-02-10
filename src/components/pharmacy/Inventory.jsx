@@ -1,86 +1,311 @@
-import React, { useState, useEffect } from "react"; 
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import Swal from "sweetalert2";
+import {
+  fetchInventory,
+  addInventoryItem,
+  deleteInventoryItem,
+  updateInventoryItem,
+  selectInventory,
+  selectInventoryFetchStatus,
+  selectInventoryFetchError,
+  selectInventoryAddStatus,
+  selectInventoryAddError,
+  clearAddError,
+  clearAddSuccess,
+} from "../../features/pharmacyInventorySlice";
+import {
+  fetchMedicines,
+  selectMedicines,
+} from "../../features/commanSlice";
 
 const Inventory = () => {
-  // Sample new medicine data to pre-fill in the form
-  const sampleNewMedicine = {
-    drugId: "DRG001",
-    drugName: "Amoxicillin 500mg",
-    drugCategory: "Antibiotic",
-    drugType: "Tablet",
-    drugManufacturer: "Cipla Ltd",
-    drugBatch: "BT2024001",
-    drugQty: 500,
-    drugPrice: 2.5,
-    drugExpiry: "2025-12-31",
-    drugBarcode: "8901234567890",
-    drugNotes: "Sample medicine for testing"
+  const dispatch = useDispatch();
+  const inventory = useSelector(selectInventory);
+  const fetchStatus = useSelector(selectInventoryFetchStatus);
+  const fetchError = useSelector(selectInventoryFetchError);
+  const addStatus = useSelector(selectInventoryAddStatus);
+  const addError = useSelector(selectInventoryAddError);
+  const medicines = useSelector(selectMedicines);
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [selectedMedicineId, setSelectedMedicineId] = useState("");
+  const [selectedMedicineName, setSelectedMedicineName] = useState("");
+  const [medicineQuery, setMedicineQuery] = useState("");
+  const [medicineSuggestions, setMedicineSuggestions] = useState([]);
+
+  // Fetch inventory and medicines on component mount
+  useEffect(() => {
+    dispatch(fetchInventory());
+    dispatch(fetchMedicines());
+  }, [dispatch]);
+
+  // Clear errors and success on unmount
+  useEffect(() => {
+    return () => {
+      dispatch(clearAddError());
+      dispatch(clearAddSuccess());
+    };
+  }, [dispatch]);
+
+  // Handle medicine search
+  const handleMedicineSearch = (e) => {
+    const query = e.target.value;
+    setMedicineQuery(query);
+    setSelectedMedicineName(query);
+
+    if (!query) {
+      setMedicineSuggestions([]);
+      setSelectedMedicineId("");
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const filtered = (Object.entries(medicines) || []).filter(([id, name]) => {
+      const medicineName = (name || "").toLowerCase();
+      return medicineName.includes(lowerQuery);
+    });
+
+    setMedicineSuggestions(filtered.slice(0, 8));
   };
 
-  // State for inventory data
-  const [inventory, setInventory] = useState([]);
+  // Handle medicine selection from suggestions
+  const handleSelectMedicine = (id, name) => {
+    setSelectedMedicineId(id);
+    setSelectedMedicineName(name);
+    setMedicineQuery(name);
+    setMedicineSuggestions([]);
+  };
 
-  // Function to pre-fill form with sample medicine data
-  const preFillForm = () => {
-    document.getElementById("drugId").value = sampleNewMedicine.drugId;
-    document.getElementById("drugName").value = sampleNewMedicine.drugName;
-    document.getElementById("drugCategory").value = sampleNewMedicine.drugCategory;
-    document.getElementById("drugType").value = sampleNewMedicine.drugType;
-    document.getElementById("drugManufacturer").value = sampleNewMedicine.drugManufacturer;
-    document.getElementById("drugBatch").value = sampleNewMedicine.drugBatch;
-    document.getElementById("drugQty").value = sampleNewMedicine.drugQty;
-    document.getElementById("drugPrice").value = sampleNewMedicine.drugPrice;
-    document.getElementById("drugExpiry").value = sampleNewMedicine.drugExpiry;
-    document.getElementById("drugBarcode").value = sampleNewMedicine.drugBarcode;
-    document.getElementById("drugNotes").value = sampleNewMedicine.drugNotes;
+  // Function to clear form for new medicine entry
+  const clearForm = () => {
+    // Clear React state for medicine selection
+    setSelectedMedicineId("");
+    setSelectedMedicineName("");
+    setMedicineQuery("");
+    setMedicineSuggestions([]);
+    
+    // Clear hidden inventoryId field
+    const inventoryIdField = document.getElementById("inventoryId");
+    if (inventoryIdField) {
+      inventoryIdField.value = "";
+    }
   };
 
   // Handle form submission
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
-    
-    const newDrug = {
-      id: document.getElementById("drugId").value,
-      name: document.getElementById("drugName").value,
-      category: document.getElementById("drugCategory").value,
-      type: document.getElementById("drugType").value,
-      manufacturer: document.getElementById("drugManufacturer").value,
-      batch: document.getElementById("drugBatch").value,
-      qty: document.getElementById("drugQty").value,
-      price: document.getElementById("drugPrice").value,
-      expiry: document.getElementById("drugExpiry").value,
-      barcode: document.getElementById("drugBarcode").value
+    e.stopPropagation();
+
+    const inventoryIdValue = document.getElementById("inventoryId")?.value;
+    // Convert to number, handle NaN by setting to null
+    const inventoryId = inventoryIdValue ? parseInt(inventoryIdValue, 10) : null;
+    const newItem = {
+      medicineId: selectedMedicineId,
+      medicineName: selectedMedicineName,
+      medicineCategory: document.getElementById("medicineCategory").value,
+      medicineType: document.getElementById("medicineType").value,
+      batchNumber: document.getElementById("batchNumber").value,
+      manufacturer: document.getElementById("manufacturer").value,
+      quantity: document.getElementById("quantity").value,
+      pricePerUnit: document.getElementById("pricePerUnit").value,
+      expiryDate: document.getElementById("expiryDate").value,
+      note: document.getElementById("note").value,
     };
 
-    setInventory([...inventory, newDrug]);
-    
-    // Close modal
-    const modal = document.getElementById("drugModal");
-    const bootstrapModal = window.bootstrap.Modal.getInstance(modal);
-    if (bootstrapModal) {
-      bootstrapModal.hide();
-    } else {
-      const modalInstance = new window.bootstrap.Modal(modal);
-      modalInstance.hide();
+    try {
+      if (inventoryId && !isNaN(inventoryId)) {
+        // Update existing item
+        await dispatch(updateInventoryItem({ inventoryId, item: newItem })).unwrap();
+        Swal.fire({
+          icon: "success",
+          title: "Medicine updated successfully",
+          showConfirmButton: true,
+        });
+      } else {
+        // Add new item
+        await dispatch(addInventoryItem(newItem)).unwrap();
+        Swal.fire({
+          icon: "success",
+          title: "Medicine added successfully",
+          showConfirmButton: true,
+        });
+      }
+
+      // Close modal
+      const modal = document.getElementById("drugModal");
+      const bootstrapModal = window.bootstrap.Modal.getInstance(modal);
+      if (bootstrapModal) {
+        bootstrapModal.hide();
+      } else {
+        const modalInstance = new window.bootstrap.Modal(modal);
+        modalInstance.hide();
+      }
+
+      // Clear form after submission
+      clearForm();
+    } catch (err) {
+      // Handle error
+      let errorMessage = "An error occurred";
+      if (typeof err === "string") {
+        errorMessage = err;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.data?.message) {
+        errorMessage = err.data.message;
+      } else if (err?.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      Swal.fire({
+        icon: "error",
+        title: inventoryId ? "Failed to update medicine" : "Failed to add medicine",
+        text: errorMessage,
+        showConfirmButton: true,
+      });
+      dispatch(clearAddError());
     }
-    
-    // Reset form
-    document.getElementById("drugForm").reset();
   };
 
-  // Listen for modal show event to pre-fill data
+  // Handle delete
+  const handleDelete = (inventoryId) => {
+    Swal.fire({
+      title: "Are you sure?",
+      text: "You won't be able to revert this!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await dispatch(deleteInventoryItem(inventoryId)).unwrap();
+          
+          // Refresh only the inventory table
+          dispatch(fetchInventory());
+          
+          Swal.fire({
+            icon: "success",
+            title: "Medicine deleted successfully",
+            timer: 1500,
+            showConfirmButton: false,
+          });
+        } catch (err) {
+          let errorMessage = "An error occurred";
+          if (typeof err === "string") {
+            errorMessage = err;
+          } else if (err?.message) {
+            errorMessage = err.message;
+          } else if (err?.data?.message) {
+            errorMessage = err.data.message;
+          } else if (err?.response?.data?.message) {
+            errorMessage = err.response.data.message;
+          }
+          
+          Swal.fire({
+            icon: "error",
+            title: "Failed to delete medicine",
+            text: errorMessage,
+          });
+        }
+      }
+    });
+  };
+
+  // Open modal for editing
+  const handleEdit = (item) => {
+    // Get the inventory ID (handle different property names)
+    const inventoryIdValue = item.inventoryId || item.id || item.InventoryId;
+    
+    // Set inventoryId in hidden field first (convert to number)
+    const inventoryIdField = document.getElementById("inventoryId");
+    if (inventoryIdField) {
+      const idValue = inventoryIdValue ? parseInt(inventoryIdValue, 10) : "";
+      inventoryIdField.value = isNaN(idValue) ? "" : idValue;
+    }
+
+    // Set medicine name and ID directly in state
+    const medicineName = item.medicineName || "";
+    const medicineId = item.medicineId || "";
+    
+    setSelectedMedicineId(medicineId);
+    setSelectedMedicineName(medicineName);
+    setMedicineQuery(medicineName);
+    setMedicineSuggestions([]);
+
+    // Pre-fill form with existing data using setTimeout to ensure state is updated
+    setTimeout(() => {
+      document.getElementById("medicineCategory").value = item.medicineCategory || "";
+      document.getElementById("medicineType").value = item.medicineType || "";
+      document.getElementById("batchNumber").value = item.batchNumber || "";
+      document.getElementById("manufacturer").value = item.manufacturer || "";
+      document.getElementById("quantity").value = item.quantity || "";
+      document.getElementById("pricePerUnit").value = item.pricePerUnit || "";
+      document.getElementById("expiryDate").value = item.expiryDate || "";
+      document.getElementById("note").value = item.note || "";
+      
+      // Also set the medicine name input value
+      const medicineNameInput = document.getElementById("medicineName");
+      if (medicineNameInput) {
+        medicineNameInput.value = medicineName;
+      }
+    }, 0);
+
+    // Open modal
+    const modal = new window.bootstrap.Modal(document.getElementById("drugModal"));
+    modal.show();
+  };
+
+  // Listen for modal show event to clear form for new entry
   useEffect(() => {
     const modal = document.getElementById("drugModal");
     if (modal) {
       modal.addEventListener("show.bs.modal", () => {
-        preFillForm();
+        // Only clear form if not editing (inventoryId not set)
+        const inventoryIdField = document.getElementById("inventoryId");
+        if (!inventoryIdField || !inventoryIdField.value) {
+          clearForm();
+        }
+      });
+      
+      modal.addEventListener("shown.bs.modal", () => {
+        // Set medicine name input value directly after modal is shown
+        const medicineNameInput = document.getElementById("medicineName");
+        if (medicineNameInput && medicineQuery) {
+          medicineNameInput.value = medicineQuery;
+        }
       });
     }
     return () => {
       if (modal) {
-        modal.removeEventListener("show.bs.modal", preFillForm);
+        modal.removeEventListener("show.bs.modal", clearForm);
       }
     };
   }, []);
+
+  // Filter inventory based on search and filters
+  const filteredInventory = inventory.filter((item) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      item.medicineName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.medicineCategory?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.medicineType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.batchNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesCategory =
+      filterCategory === "" || item.medicineCategory === filterCategory;
+    const matchesType = filterType === "" || item.medicineType === filterType;
+
+    return matchesSearch && matchesCategory && matchesType;
+  });
+
+  // Loading state
+  const isLoading = fetchStatus === "loading";
+  const isAdding = addStatus === "loading";
 
   return (
     <>
@@ -96,34 +321,45 @@ const Inventory = () => {
               id="searchInput"
               type="search"
               className="form-control"
-              placeholder="Search by name, ID, category or type"
+              placeholder="Search by category, type, batch or manufacturer"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
           <div className="col-sm-6 col-md-3">
-            <select id="filterCategory" className="form-select">
+            <select
+              id="filterCategory"
+              className="form-select"
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+            >
               <option value="">All Categories</option>
-              <option>Antibiotic</option>
-              <option>Analgesic</option>
-              <option>Antipyretic</option>
-              <option>Supplement</option>
+              <option value="ANTIBIOTIC">ANTIBIOTIC</option>
+              <option value="ANALGESIC">ANALGESIC</option>
+              <option value="SUPPLEMENT">SUPPLEMENT</option>
+              <option value="ANTIPYRETIC">ANTIPYRETIC</option>
             </select>
           </div>
 
           <div className="col-sm-6 col-md-3">
-            <select id="filterType" className="form-select">
+            <select
+              id="filterType"
+              className="form-select"
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+            >
               <option value="">All Types</option>
-              <option>Tablet</option>
-              <option>Syrup</option>
-              <option>Injection</option>
-              <option>Ointment</option>
-              <option>Capsule</option>
+              <option value="TABLET">TABLET</option>
+              <option value="SYRUP">SYRUP</option>
+              <option value="INJECTION">INJECTION</option>
+              <option value="OINTMENT">OINTMENT</option>
             </select>
           </div>
 
           <div className="col-auto ms-auto">
             <small className="text-muted me-3">
-              Showing <span id="count">{inventory.length}</span> items
+              Showing <span id="count">{filteredInventory.length}</span> items
             </small>
             <button
               className="btn btn-outline-primary btn-sm"
@@ -135,6 +371,13 @@ const Inventory = () => {
           </div>
         </div>
 
+        {/* Error Message */}
+        {fetchError && (
+          <div className="alert alert-danger mb-3">
+            Error fetching inventory: {fetchError}
+          </div>
+        )}
+
         {/* Inventory Table */}
         <div className="table-responsive table-wrap print-area" id="printArea">
           <table
@@ -144,45 +387,66 @@ const Inventory = () => {
             <thead className="table-light align-middle">
               <tr>
                 <th>#</th>
-                <th>Drug ID</th>
-                <th>Name</th>
+                <th>Medicine Name</th>
                 <th>Category</th>
                 <th>Type</th>
+                <th>Batch Number</th>
                 <th>Manufacturer</th>
-                <th>Batch</th>
-                <th>Qty</th>
-                <th>Unit Price (₹)</th>
-                <th>Expiry</th>
-                <th>Barcode</th>
+                <th>Quantity</th>
+                <th>Price (₹)</th>
+                <th>Expiry Date</th>
+                <th>Note</th>
                 <th className="no-print">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {inventory.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan="12" className="text-muted py-4">
+                  <td colSpan="11" className="py-4">
+                    Loading...
+                  </td>
+                </tr>
+              ) : filteredInventory.length === 0 ? (
+                <tr>
+                  <td colSpan="11" className="text-muted py-4">
                     No medicines in inventory. Click "Add / Update Stock" to add a new medicine.
                   </td>
                 </tr>
               ) : (
-                inventory.map((item, index) => (
-                  <tr key={index}>
+                filteredInventory.map((item, index) => (
+                  <tr key={item.inventoryId || index}>
                     <td>{index + 1}</td>
-                    <td>{item.id}</td>
-                    <td>{item.name}</td>
-                    <td>{item.category}</td>
-                    <td>{item.type}</td>
+                    <td>{item.medicineName}</td>
+                    <td>{item.medicineCategory}</td>
+                    <td>{item.medicineType}</td>
+                    <td>{item.batchNumber}</td>
                     <td>{item.manufacturer}</td>
-                    <td>{item.batch}</td>
-                    <td>{item.qty}</td>
-                    <td>{item.price}</td>
-                    <td>{item.expiry}</td>
-                    <td>{item.barcode}</td>
+                    <td>{item.quantity}</td>
+                    <td>{item.pricePerUnit}</td>
+                    <td>{item.expiryDate}</td>
+                    <td>{item.note}</td>
                     <td className="no-print">
-                      <button className="btn btn-sm btn-outline-primary me-1">
+                      <button
+                        className="btn btn-sm btn-outline-primary me-1"
+                        onClick={() => handleEdit(item)}
+                      >
                         <i className="fa-solid fa-edit"></i>
                       </button>
-                      <button className="btn btn-sm btn-outline-danger">
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => {
+                          const id = item.inventoryId || item.id || item.InventoryId;
+                          if (id) {
+                            handleDelete(Number(id));
+                          } else {
+                            Swal.fire({
+                              icon: "error",
+                              title: "Invalid item",
+                              text: "Cannot delete: Missing inventory ID",
+                            });
+                          }
+                        }}
+                      >
                         <i className="fa-solid fa-trash"></i>
                       </button>
                     </td>
@@ -213,57 +477,86 @@ const Inventory = () => {
                 </div>
 
                 <div className="modal-body">
+                  {/* Hidden inventory ID field for editing */}
+                  <input type="hidden" id="inventoryId" value="" />
+                  
+                  {/* Add Error Message */}
+                  {addError && (
+                    <div className="alert alert-danger mb-3">
+                      Error: {addError}
+                    </div>
+                  )}
+
                   <div className="row g-3">
-                    <div className="col-md-4">
-                      <label className="form-label">Drug ID</label>
+                    {/* Medicine Name with Auto-suggestion */}
+                    <div className="col-md-4 position-relative">
+                      <label className="form-label">
+                        Medicine Name <span className="text-danger">*</span>
+                      </label>
                       <input
                         type="text"
-                        id="drugId"
+                        id="medicineName"
                         className="form-control"
-                        required
+                        placeholder="Search medicine name"
+                        value={medicineQuery}
+                        onChange={handleMedicineSearch}
                       />
+                      {medicineSuggestions.length > 0 && (
+                        <ul
+                          className="list-group position-absolute w-100"
+                          style={{
+                            zIndex: 1000,
+                            maxHeight: 200,
+                            overflowY: "auto",
+                          }}
+                        >
+                          {medicineSuggestions.map(([id, name]) => (
+                            <li
+                              key={id}
+                              className="list-group-item list-group-item-action"
+                              onClick={() => handleSelectMedicine(id, name)}
+                              style={{ cursor: "pointer" }}
+                            >
+                              <div className="fw-semibold">{name}</div>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Name</label>
-                      <input
-                        type="text"
-                        id="drugName"
-                        className="form-control"
-                        required
-                      />
-                    </div>
+
                     <div className="col-md-4">
                       <label className="form-label">Category</label>
-                      <select id="drugCategory" className="form-select">
-                        <option>Antibiotic</option>
-                        <option>Analgesic</option>
-                        <option>Antipyretic</option>
-                        <option>Supplement</option>
+                      <select id="medicineCategory" className="form-select">
+                        <option value="">Select Category</option>
+                        <option value="ANTIBIOTIC">ANTIBIOTIC</option>
+                        <option value="ANALGESIC">ANALGESIC</option>
+                        <option value="SUPPLEMENT">SUPPLEMENT</option>
+                        <option value="ANTIPYRETIC">ANTIPYRETIC</option>
                       </select>
                     </div>
                     <div className="col-md-4">
                       <label className="form-label">Type</label>
-                      <select id="drugType" className="form-select">
-                        <option>Tablet</option>
-                        <option>Syrup</option>
-                        <option>Injection</option>
-                        <option>Ointment</option>
-                        <option>Capsule</option>
+                      <select id="medicineType" className="form-select">
+                        <option value="">Select Type</option>
+                        <option value="TABLET">TABLET</option>
+                        <option value="SYRUP">SYRUP</option>
+                        <option value="INJECTION">INJECTION</option>
+                        <option value="OINTMENT">OINTMENT</option>
                       </select>
+                    </div>
+                    <div className="col-md-4">
+                      <label className="form-label">Batch Number</label>
+                      <input
+                        type="text"
+                        id="batchNumber"
+                        className="form-control"
+                      />
                     </div>
                     <div className="col-md-4">
                       <label className="form-label">Manufacturer</label>
                       <input
                         type="text"
-                        id="drugManufacturer"
-                        className="form-control"
-                      />
-                    </div>
-                    <div className="col-md-4">
-                      <label className="form-label">Batch No.</label>
-                      <input
-                        type="text"
-                        id="drugBatch"
+                        id="manufacturer"
                         className="form-control"
                       />
                     </div>
@@ -271,16 +564,16 @@ const Inventory = () => {
                       <label className="form-label">Quantity</label>
                       <input
                         type="number"
-                        id="drugQty"
+                        id="quantity"
                         className="form-control"
                         min={0}
                       />
                     </div>
                     <div className="col-md-4">
-                      <label className="form-label">Unit Price (₹)</label>
+                      <label className="form-label">Price (₹)</label>
                       <input
                         type="number"
-                        id="drugPrice"
+                        id="pricePerUnit"
                         className="form-control"
                         step="0.01"
                         min={0}
@@ -290,32 +583,14 @@ const Inventory = () => {
                       <label className="form-label">Expiry Date</label>
                       <input
                         type="date"
-                        id="drugExpiry"
+                        id="expiryDate"
                         className="form-control"
                       />
                     </div>
-                    <div className="col-md-6">
-                      <label className="form-label">Barcode (Optional)</label>
-                      <div className="input-group">
-                        <input
-                          type="text"
-                          id="drugBarcode"
-                          className="form-control"
-                          placeholder="Scan or enter barcode"
-                        />
-                        <button
-                          className="btn btn-outline-secondary"
-                          type="button"
-                          id="generateBarcode"
-                        >
-                          <i className="fa-solid fa-barcode"></i>
-                        </button>
-                      </div>
-                    </div>
                     <div className="col-12">
-                      <label className="form-label">Notes</label>
+                      <label className="form-label">Note</label>
                       <textarea
-                        id="drugNotes"
+                        id="note"
                         className="form-control"
                         rows={2}
                       ></textarea>
@@ -335,8 +610,18 @@ const Inventory = () => {
                     type="submit"
                     className="btn btn-primary"
                     style={{ backgroundColor: "#01C0C8", border: 0 }}
+                    disabled={isAdding || !selectedMedicineId}
                   >
-                    <i className="fa-solid fa-floppy-disk me-1"></i> Save
+                    {isAdding ? (
+                      <span>
+                        <i className="fa-solid fa-spinner fa-spin me-1"></i>
+                        Saving...
+                      </span>
+                    ) : (
+                      <span>
+                        <i className="fa-solid fa-floppy-disk me-1"></i> Save
+                      </span>
+                    )}
                   </button>
                 </div>
               </form>
