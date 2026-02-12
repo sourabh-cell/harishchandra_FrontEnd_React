@@ -53,14 +53,17 @@ function Prescription() {
   };
 
   const handleDispense = (prescription) => {
+    console.log("Prescription data:", prescription);
+    console.log("Prescription items:", prescription.items);
     setSelectedPrescription(prescription);
     setDispenseModalOpen(true);
     // Pre-populate with prescription items if available
     if (prescription.items && prescription.items.length > 0) {
+      console.log("Pre-populating with prescription items...");
       setDispenseItems(
         prescription.items.map(item => ({
-          medicineId: item.medicineId || "",
-          medicineName: item.medicineName || "",
+          medicineId: item.medicineId || item.id || "",
+          medicineName: item.medicineName || item.name || "",
           quantity: 1
         }))
       );
@@ -75,9 +78,11 @@ function Prescription() {
   };
 
   const handleMedicineSearch = (index, searchTerm) => {
+    console.log("Searching medicine at index:", index, "term:", searchTerm);
     const updatedItems = [...dispenseItems];
     updatedItems[index].medicineName = searchTerm;
-    updatedItems[index].medicineId = "";
+    updatedItems[index].medicineId = ""; // Clear medicineId when typing
+    console.log("Cleared medicineId for index:", index);
     setDispenseItems(updatedItems);
     setActiveMedicineIndex(index);
 
@@ -88,9 +93,13 @@ function Prescription() {
         name
       }));
       
+      console.log("All medicines array:", medicinesArray);
+      
       const filtered = medicinesArray.filter(med =>
         med.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      
+      console.log("Filtered results:", filtered);
       
       const itemsWithResults = [...dispenseItems];
       itemsWithResults[index].searchResults = filtered;
@@ -103,10 +112,12 @@ function Prescription() {
   };
 
   const selectMedicine = (index, medicine) => {
+    console.log("Selecting medicine at index:", index, "medicine:", medicine);
     const updatedItems = [...dispenseItems];
     updatedItems[index].medicineId = medicine.id;
     updatedItems[index].medicineName = medicine.name;
     updatedItems[index].searchResults = [];
+    console.log("Updated item:", updatedItems[index]);
     setDispenseItems(updatedItems);
     setActiveMedicineIndex(null);
   };
@@ -129,8 +140,13 @@ function Prescription() {
   };
 
   const handleSubmitDispense = async () => {
+    // Log all dispenseItems to debug medicineId
+    console.log("dispenseItems:", dispenseItems);
+    
     // Validate
     const validItems = dispenseItems.filter(item => item.medicineId && item.quantity > 0);
+    console.log("validItems:", validItems);
+    
     if (validItems.length === 0) {
       Swal.fire({
         icon: "warning",
@@ -154,6 +170,8 @@ function Prescription() {
       medicineId: item.medicineId,
       quantity: item.quantity
     }));
+
+    console.log("Payload being sent:", payload);
 
     try {
       const response = await axiosInstance.put(`/pharmacy/prescriptions/dispense/${selectedPrescription.id}`, payload);
