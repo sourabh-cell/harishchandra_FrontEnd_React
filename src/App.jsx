@@ -453,7 +453,7 @@ function App() {
           element: <EditPrescription />,
         },
 
-        //Patient management routes here
+      //  Patient management routes here
         {
           path: "patients-registration/add-patient",
           element: <PatientRegistration />,

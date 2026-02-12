@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   fetchAllPharmacyPrescriptions,
@@ -6,15 +6,34 @@ import {
   selectFetchPharmacyPrescriptionsStatus,
   selectFetchPharmacyPrescriptionsError,
 } from "../../features/pharmacyPrescriptionSlice";
+import {
+  fetchMedicines,
+  selectMedicines,
+} from "../../features/commanSlice";
+import axiosInstance from "../../api/axiosConfig";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 function Prescription() {
   const dispatch = useDispatch();
   const prescriptions = useSelector(selectPharmacyPrescriptions);
   const fetchStatus = useSelector(selectFetchPharmacyPrescriptionsStatus);
   const fetchError = useSelector(selectFetchPharmacyPrescriptionsError);
+  const medicines = useSelector(selectMedicines);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+  
+  // Dispense modal state
+  const [dispenseModalOpen, setDispenseModalOpen] = useState(false);
+  const [dispenseItems, setDispenseItems] = useState([{ medicineId: "", medicineName: "", quantity: 1, searchResults: [] }]);
+  const [loading, setLoading] = useState(false);
+  const [activeMedicineIndex, setActiveMedicineIndex] = useState(null);
+  
+  // Refs for auto-suggestion dropdowns
+  const suggestionRefs = useRef([]);
 
   const themeColor = "#01C0C8";
+
+  // Remove mock medicines array since we now use Redux
 
   useEffect(() => {
     if (fetchStatus === "idle") {
@@ -22,8 +41,150 @@ function Prescription() {
     }
   }, [fetchStatus, dispatch]);
 
+  // Fetch medicines when dispense modal opens
+  useEffect(() => {
+    if (dispenseModalOpen) {
+      dispatch(fetchMedicines());
+    }
+  }, [dispenseModalOpen, dispatch]);
+
   const handleViewPrescription = (prescription) => {
     setSelectedPrescription(prescription);
+  };
+
+  const handleDispense = (prescription) => {
+    setSelectedPrescription(prescription);
+    setDispenseModalOpen(true);
+    // Pre-populate with prescription items if available
+    if (prescription.items && prescription.items.length > 0) {
+      setDispenseItems(
+        prescription.items.map(item => ({
+          medicineId: item.medicineId || "",
+          medicineName: item.medicineName || "",
+          quantity: 1
+        }))
+      );
+    } else {
+      setDispenseItems([{ medicineId: "", medicineName: "", quantity: 1 }]);
+    }
+  };
+
+  const closeDispenseModal = () => {
+    setDispenseModalOpen(false);
+    setDispenseItems([{ medicineId: "", medicineName: "", quantity: 1 }]);
+  };
+
+  const handleMedicineSearch = (index, searchTerm) => {
+    const updatedItems = [...dispenseItems];
+    updatedItems[index].medicineName = searchTerm;
+    updatedItems[index].medicineId = "";
+    setDispenseItems(updatedItems);
+    setActiveMedicineIndex(index);
+
+    if (searchTerm.length > 0) {
+      // Convert medicines object to array and filter
+      const medicinesArray = Object.entries(medicines).map(([id, name]) => ({
+        id: parseInt(id),
+        name
+      }));
+      
+      const filtered = medicinesArray.filter(med =>
+        med.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      
+      const itemsWithResults = [...dispenseItems];
+      itemsWithResults[index].searchResults = filtered;
+      setDispenseItems(itemsWithResults);
+    } else {
+      const itemsWithResults = [...dispenseItems];
+      itemsWithResults[index].searchResults = [];
+      setDispenseItems(itemsWithResults);
+    }
+  };
+
+  const selectMedicine = (index, medicine) => {
+    const updatedItems = [...dispenseItems];
+    updatedItems[index].medicineId = medicine.id;
+    updatedItems[index].medicineName = medicine.name;
+    updatedItems[index].searchResults = [];
+    setDispenseItems(updatedItems);
+    setActiveMedicineIndex(null);
+  };
+
+  const addMedicineRow = () => {
+    setDispenseItems([...dispenseItems, { medicineId: "", medicineName: "", quantity: 1, searchResults: [] }]);
+  };
+
+  const removeMedicineRow = (index) => {
+    if (dispenseItems.length > 1) {
+      const updatedItems = dispenseItems.filter((_, i) => i !== index);
+      setDispenseItems(updatedItems);
+    }
+  };
+
+  const updateQuantity = (index, quantity) => {
+    const updatedItems = [...dispenseItems];
+    updatedItems[index].quantity = parseInt(quantity) || 1;
+    setDispenseItems(updatedItems);
+  };
+
+  const handleSubmitDispense = async () => {
+    // Validate
+    const validItems = dispenseItems.filter(item => item.medicineId && item.quantity > 0);
+    if (validItems.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Please add at least one medicine with valid quantity",
+      });
+      return;
+    }
+
+    if (!selectedPrescription || !selectedPrescription.id) {
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "No prescription selected",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const payload = validItems.map(item => ({
+      medicineId: item.medicineId,
+      quantity: item.quantity
+    }));
+
+    try {
+      const response = await axiosInstance.put(`/pharmacy/prescriptions/dispense/${selectedPrescription.id}`, payload);
+
+      if (response.status === 200 || response.status === 201) {
+        Swal.fire({
+          icon: "success",
+          title: "Dispense Successful",
+          text: "Medicine Dispense SuccessFully",
+          timer: 3000,
+          showConfirmButton: false,
+        });
+        closeDispenseModal();
+        dispatch(fetchAllPharmacyPrescriptions()); // Refresh the list
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Dispense Failed",
+          text: "Failed to dispense prescription",
+        });
+      }
+    } catch (error) {
+      console.error("Error dispensing prescription:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "Error dispensing prescription",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePrint = () => {
@@ -223,6 +384,14 @@ function Prescription() {
                       >
                         <i className="fa-solid fa-eye"></i>
                       </button>
+                      <button
+                        className="btn btn-sm btn-success me-1"
+                        onClick={() => handleDispense(prescription)}
+                        disabled={prescription.status === "DISPENSED"}
+                        title={prescription.status === "DISPENSED" ? "Already Dispensed" : "Dispense Prescription"}
+                      >
+                        <i className="fa-solid fa-check-double"></i>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -323,7 +492,7 @@ function Prescription() {
                   {/* Signature */}
                   <div className="signature-section" style={{ margin: "30px 20px 20px 20px", textAlign: "right" }}>
                     <div className="signature-line" style={{ display: "inline-block", borderTop: "1px solid #333", width: "200px", marginTop: "5px" }}></div>
-                    <div style={{ marginTop: "5px" }}>Doctor{"'"}s Signature</div>
+                    <div style={{ marginTop: "5px" }}>Doctor{'s'} Signature</div>
                   </div>
 
                   {/* Footer */}
@@ -344,9 +513,6 @@ function Prescription() {
               <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">
                 <i className="fa-solid fa-times me-1"></i> Close
               </button>
-              <button className="btn btn-success" id="dispenseBtn" style={{ marginLeft: "10px" }}>
-                <i className="fa-solid fa-pills me-1"></i> Dispense
-              </button>
               <button className="btn btn-info text-white" id="printDetailsBtn" onClick={handlePrint} style={{ marginLeft: "10px" }}>
                 <i className="fa-solid fa-print me-1"></i> Print
               </button>
@@ -354,6 +520,103 @@ function Prescription() {
           </div>
         </div>
       </div>
+
+      {/* 📋 DISPENSE MEDICINE MODAL */}
+      <div className={`modal fade ${dispenseModalOpen ? "show" : ""}`} id="dispenseModal" tabIndex={-1} aria-hidden={!dispenseModalOpen} style={{ display: dispenseModalOpen ? "block" : "none" }}>
+        <div className="modal-dialog modal-dialog-centered">
+          <div className="modal-content border-0 shadow-lg" style={{ borderRadius: "10px" }}>
+            <div className="modal-header" style={{ backgroundColor: "#01C0C8", color: "white" }}>
+              <h5 className="modal-title">
+                <i className="fa-solid fa-pills me-2"></i> Dispense Medicines
+              </h5>
+              <button type="button" className="btn-close btn-close-white" onClick={closeDispenseModal} aria-label="Close"></button>
+            </div>
+            <div className="modal-body">
+              {selectedPrescription && (
+                <div className="mb-3 p-2 bg-light rounded">
+                  <strong>Prescription ID:</strong> {selectedPrescription.prescriptionId}<br />
+                  <strong>Patient:</strong> {selectedPrescription.patientName}<br />
+                  <strong>Doctor:</strong> {selectedPrescription.doctorName}
+                </div>
+              )}
+              
+              <div className="mb-2 d-flex justify-content-between align-items-center">
+                <strong>Dispense Items:</strong>
+                <button className="btn btn-sm btn-primary" onClick={addMedicineRow}>
+                  <i className="fa-solid fa-plus me-1"></i> Add Medicine
+                </button>
+              </div>
+              
+              {dispenseItems.map((item, index) => (
+                <div key={index} className="row mb-2 align-items-center">
+                  <div className="col-6 position-relative">
+                    <label className="form-label small mb-1">Medicine Name</label>
+                    <input
+                      type="text"
+                      className="form-control form-control-sm"
+                      placeholder="Search medicine..."
+                      value={item.medicineName}
+                      onChange={(e) => handleMedicineSearch(index, e.target.value)}
+                      autoComplete="off"
+                    />
+                    {activeMedicineIndex === index && item.searchResults && item.searchResults.length > 0 && (
+                      <ul className="list-group position-absolute w-100 mt-1" style={{ zIndex: 1000, maxHeight: "150px", overflowY: "auto" }}>
+                        {item.searchResults.map((med) => (
+                          <li
+                            key={med.id}
+                            className="list-group-item list-group-item-action py-2"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => selectMedicine(index, med)}
+                          >
+                            {med.name}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div className="col-4">
+                    <label className="form-label small mb-1">Quantity</label>
+                    <input
+                      type="number"
+                      className="form-control form-control-sm"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateQuantity(index, e.target.value)}
+                    />
+                  </div>
+                  <div className="col-2">
+                    <button
+                      className="btn btn-sm btn-outline-danger mt-3"
+                      onClick={() => removeMedicineRow(index)}
+                      disabled={dispenseItems.length === 1}
+                    >
+                      <i className="fa-solid fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={closeDispenseModal}>
+                <i className="fa-solid fa-times me-1"></i> Cancel
+              </button>
+              <button className="btn btn-success" onClick={handleSubmitDispense} disabled={loading}>
+                {loading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-1"></span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-check me-1"></i> Submit Dispense
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {dispenseModalOpen && <div className="modal-backdrop fade show"></div>}
     </div>
   );
 }
