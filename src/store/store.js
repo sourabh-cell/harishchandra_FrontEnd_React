@@ -28,6 +28,7 @@ import medicineReducer from "../features/medicineSlice";
 import pharmacyInventoryReducer from "../features/pharmacyInventorySlice";
 import pharmacyPrescriptionReducer from "../features/pharmacyPrescriptionSlice";
 import pharmacyInvoiceReducer from "../features/pharmacyInvoiceSlice";
+import pharmacyOrderReducer from "../features/pharmacyOrderSlice";
 import patientRegistrationListReducer from "../features/patientRegistrationListSlice";
 
 export const store = configureStore({
@@ -62,6 +63,7 @@ export const store = configureStore({
     pharmacyInventory: pharmacyInventoryReducer,
     pharmacyPrescription: pharmacyPrescriptionReducer,
     pharmacyInvoice: pharmacyInvoiceReducer,
+    pharmacyOrder: pharmacyOrderReducer,
   },
 });
 

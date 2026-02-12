@@ -59,13 +59,13 @@ function Prescription() {
     if (prescription.items && prescription.items.length > 0) {
       setDispenseItems(
         prescription.items.map(item => ({
-          medicineId: item.medicineId || "",
-          medicineName: item.medicineName || "",
-          quantity: 1
+          medicineId: item.medicineId || item.id || "", // Fallback to id if medicineId not present
+          medicineName: item.medicineName || item.name || "",
+          quantity: item.quantity || 1
         }))
       );
     } else {
-      setDispenseItems([{ medicineId: "", medicineName: "", quantity: 1 }]);
+      setDispenseItems([{ medicineId: "", medicineName: "", quantity: 1, searchResults: [] }]);
     }
   };
 
@@ -124,13 +124,19 @@ function Prescription() {
 
   const updateQuantity = (index, quantity) => {
     const updatedItems = [...dispenseItems];
-    updatedItems[index].quantity = parseInt(quantity) || 1;
+    const parsedQuantity = parseInt(quantity) || 0;
+    updatedItems[index].quantity = parsedQuantity;
     setDispenseItems(updatedItems);
   };
 
   const handleSubmitDispense = async () => {
-    // Validate
-    const validItems = dispenseItems.filter(item => item.medicineId && item.quantity > 0);
+    // Validate - check for valid medicineId (not empty string) and quantity > 0
+    const validItems = dispenseItems.filter(item => 
+      item.medicineId && 
+      item.medicineId.toString().trim() !== "" && 
+      item.quantity > 0
+    );
+    
     if (validItems.length === 0) {
       Swal.fire({
         icon: "warning",

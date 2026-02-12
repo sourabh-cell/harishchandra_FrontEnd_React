@@ -37,6 +37,8 @@ const Medicine1 = () => {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredMedicines, setFilteredMedicines] = useState([]);
+  const [medicineNameQuery, setMedicineNameQuery] = useState("");
+  const [medicineNameSuggestions, setMedicineNameSuggestions] = useState([]);
 
   useEffect(() => {
     if (fetchStatus === "idle") {
@@ -65,6 +67,36 @@ const Medicine1 = () => {
   const handleChange = (e) => {
     const { id, value } = e.target;
     setMedicineData({ ...medicineData, [id]: value });
+
+    // Handle medicine name suggestions
+    if (id === 'medicineName') {
+      setMedicineNameQuery(value);
+
+      if (!value) {
+        setMedicineNameSuggestions([]);
+        return;
+      }
+
+      const lowerQuery = value.toLowerCase();
+      const filtered = medicines.filter((med) => {
+        const medName = (med.medicineName || "").toLowerCase();
+        return medName.includes(lowerQuery);
+      });
+
+      setMedicineNameSuggestions(filtered.slice(0, 8));
+    }
+  };
+
+  // Handle medicine name selection from suggestions
+  const handleSelectMedicineName = (medicine) => {
+    setMedicineData({
+      ...medicineData,
+      medicineName: medicine.medicineName,
+      medicineCategory: medicine.medicineCategory,
+      medicineType: medicine.medicineType
+    });
+    setMedicineNameQuery(medicine.medicineName);
+    setMedicineNameSuggestions([]);
   };
 
   const handleSubmit = async (e) => {
@@ -116,12 +148,16 @@ const Medicine1 = () => {
     setShowForm(true);
     setEditingMedicine(null);
     setMedicineData({ medicineName: "", medicineCategory: "", medicineType: "" });
+    setMedicineNameQuery("");
+    setMedicineNameSuggestions([]);
   };
 
   const handleCancel = () => {
     setShowForm(false);
     setEditingMedicine(null);
     setMedicineData({ medicineName: "", medicineCategory: "", medicineType: "" });
+    setMedicineNameQuery("");
+    setMedicineNameSuggestions([]);
   };
 
   const handleEdit = (medicine) => {
@@ -132,6 +168,8 @@ const Medicine1 = () => {
       medicineCategory: medicine.medicineCategory,
       medicineType: medicine.medicineType
     });
+    setMedicineNameQuery(medicine.medicineName);
+    setMedicineNameSuggestions([]);
   };
 
   const handleDelete = async (medicine) => {
@@ -202,16 +240,42 @@ const Medicine1 = () => {
       {showForm ? (
         <form onSubmit={handleSubmit}>
           <div className="row g-3">
-            <div className="col-md-4">
+            <div className="col-md-4 position-relative">
               <label className="form-label">Name</label>
               <input
                 type="text"
                 id="medicineName"
                 className="form-control"
-                value={medicineData.medicineName}
+                placeholder="Search or enter medicine name"
+                value={medicineNameQuery}
                 onChange={handleChange}
                 required
               />
+              {medicineNameSuggestions.length > 0 && (
+                <ul
+                  className="list-group position-absolute w-100"
+                  style={{
+                    zIndex: 1000,
+                    maxHeight: 200,
+                    overflowY: 'auto',
+                    marginTop: '2px'
+                  }}
+                >
+                  {medicineNameSuggestions.map((med) => (
+                    <li
+                      key={med.medicineId}
+                      className="list-group-item list-group-item-action"
+                      onClick={() => handleSelectMedicineName(med)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="fw-semibold">{med.medicineName}</div>
+                      <div className="small text-muted">
+                        {med.medicineCategory} | {med.medicineType}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div className="col-md-4">
               <label className="form-label">Category</label>

@@ -87,6 +87,22 @@ export const fetchDoctorNameIds = createAsyncThunk(
   }
 );
 
+// Thunk to fetch pharmacist name-id pairs
+export const fetchPharmacistNameIds = createAsyncThunk(
+  "comman/fetchPharmacistNameIds",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/Pharmacist/name-ids`);
+      const data = res.data?.data || res.data;
+      console.log("Pharmacist name-ids API response:", data);
+      return data;
+    } catch (err) {
+      console.error("Failed to fetch pharmacist name-ids:", err);
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+
 const commanSlice = createSlice({
   name: "comman",
   initialState: {
@@ -103,6 +119,9 @@ const commanSlice = createSlice({
     doctorsError: null,
     doctorNameIdsStatus: "idle",
     doctorNameIdsError: null,
+    pharmacistNameIds: [],
+    pharmacistNameIdsStatus: "idle",
+    pharmacistNameIdsError: null,
   },
   reducers: {
     // optional reducers if needed in future
@@ -125,6 +144,11 @@ const commanSlice = createSlice({
       state.medicines = {};
       state.medicinesStatus = "idle";
       state.medicinesError = null;
+    },
+    clearPharmacistNameIds(state) {
+      state.pharmacistNameIds = [];
+      state.pharmacistNameIdsStatus = "idle";
+      state.pharmacistNameIdsError = null;
     },
   },
   extraReducers: (builder) => {
@@ -214,11 +238,28 @@ const commanSlice = createSlice({
       .addCase(fetchDoctorNameIds.rejected, (state, action) => {
         state.doctorNameIdsStatus = "failed";
         state.doctorNameIdsError = action.payload || action.error.message;
+      })
+
+      // pharmacist name-ids reducers
+      builder
+      .addCase(fetchPharmacistNameIds.pending, (state) => {
+        state.pharmacistNameIdsStatus = "loading";
+        state.pharmacistNameIdsError = null;
+      })
+      .addCase(fetchPharmacistNameIds.fulfilled, (state, action) => {
+        state.pharmacistNameIdsStatus = "succeeded";
+        state.pharmacistNameIds = Array.isArray(action.payload)
+          ? action.payload
+          : action.payload?.data || [];
+      })
+      .addCase(fetchPharmacistNameIds.rejected, (state, action) => {
+        state.pharmacistNameIdsStatus = "failed";
+        state.pharmacistNameIdsError = action.payload || action.error.message;
       });
   },
 });
 
-export const { clearPatients, clearDepartments, clearMedicines, clearDoctors } =
+export const { clearPatients, clearDepartments, clearMedicines, clearDoctors, clearPharmacistNameIds } =
   commanSlice.actions;
 
 // Selectors
@@ -253,3 +294,10 @@ export const selectDoctors = (state) => state.comman?.doctors || [];
 export const selectDoctorsStatus = (state) =>
   state.comman?.doctorsStatus || "idle";
 export const selectDoctorsError = (state) => state.comman?.doctorsError || null;
+
+// Selectors for pharmacists
+export const selectPharmacistNameIds = (state) => state.comman?.pharmacistNameIds || [];
+export const selectPharmacistNameIdsStatus = (state) =>
+  state.comman?.pharmacistNameIdsStatus || "idle";
+export const selectPharmacistNameIdsError = (state) =>
+  state.comman?.pharmacistNameIdsError || null;
