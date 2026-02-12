@@ -30,6 +30,7 @@ import pharmacyPrescriptionReducer from "../features/pharmacyPrescriptionSlice";
 import pharmacyInvoiceReducer from "../features/pharmacyInvoiceSlice";
 import pharmacyOrderReducer from "../features/pharmacyOrderSlice";
 import patientRegistrationListReducer from "../features/patientRegistrationListSlice";
+import dashboardReducer from "../features/dashboardSlice";
 
 export const store = configureStore({
   reducer: {
@@ -64,6 +65,7 @@ export const store = configureStore({
     pharmacyPrescription: pharmacyPrescriptionReducer,
     pharmacyInvoice: pharmacyInvoiceReducer,
     pharmacyOrder: pharmacyOrderReducer,
+    dashboard: dashboardReducer,
   },
 });
 

@@ -5,6 +5,9 @@ export const GenderOptions = [
   { value: "OTHER", label: "Other" },
 ];
 
+// API URL from environment variable
+export const API_URL = import.meta.env.VITE_API_BASE_URL || "";
+
 export const MaritalStatusOptions = [
   { value: "SINGLE", label: "Single" },
   { value: "MARRIED", label: "Married" },

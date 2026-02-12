@@ -1,22 +1,44 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchAllOrders, selectAllOrders, selectAllOrdersFetchStatus, selectAllOrdersFetchError } from "../../features/pharmacyOrderSlice";
+import { 
+  fetchAllOrders, 
+  selectAllOrders, 
+  selectAllOrdersFetchStatus, 
+  selectAllOrdersFetchError,
+  createOrder,
+  selectOrderCreateStatus,
+  selectOrderCreateError,
+  updateOrder,
+  selectOrderUpdateStatus,
+  selectOrderUpdateError,
+  updateOrderStatus,
+  processReceivedOrder
+} from "../../features/pharmacyOrderSlice";
 import { fetchAllMedicines, selectMedicines } from "../../features/medicineSlice";
 import { fetchPharmacistNameIds, selectPharmacistNameIds } from "../../features/commanSlice";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 function Order() {
   const dispatch = useDispatch();
   const orders = useSelector(selectAllOrders);
   const fetchStatus = useSelector(selectAllOrdersFetchStatus);
   const fetchError = useSelector(selectAllOrdersFetchError);
+  const createStatus = useSelector(selectOrderCreateStatus);
+  const createError = useSelector(selectOrderCreateError);
   const medicinesList = useSelector(selectMedicines);
   const pharmacistList = useSelector(selectPharmacistNameIds);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [medicines, setMedicines] = useState([{ medicineName: "", quantity: 1 }]);
   const [medicineSearchQueries, setMedicineSearchQueries] = useState([]);
   const [medicineSuggestions, setMedicineSuggestions] = useState([]);
   const [requestedByQuery, setRequestedByQuery] = useState("");
   const [requestedBySuggestions, setRequestedBySuggestions] = useState([]);
+  const [selectedPharmacistId, setSelectedPharmacistId] = useState(null);
+  const [receivedItems, setReceivedItems] = useState([]);
+  const [supplierName, setSupplierName] = useState("");
+  const [notes, setNotes] = useState("");
   const themeColor = "#01C0C8";
 
   useEffect(() => {
@@ -24,6 +46,21 @@ function Order() {
     dispatch(fetchAllMedicines());
     dispatch(fetchPharmacistNameIds());
   }, [dispatch]);
+
+  // Reset form when modal is closed
+  useEffect(() => {
+    const orderModal = document.getElementById('orderModal');
+    if (orderModal) {
+      orderModal.addEventListener('hidden.bs.modal', () => {
+        resetForm();
+      });
+    }
+    return () => {
+      if (orderModal) {
+        orderModal.removeEventListener('hidden.bs.modal', resetForm);
+      }
+    };
+  }, []);
 
   const handleViewOrder = (order) => {
     setSelectedOrder(order);
@@ -79,8 +116,9 @@ function Order() {
   // Handle medicine selection from suggestions
   const handleSelectMedicine = (index, medicine) => {
     const medName = medicine.medicineName || medicine.name || medicine;
+    const medId = medicine.medicineId || medicine.id;
     const newMedicines = [...medicines];
-    newMedicines[index] = { ...newMedicines[index], medicineName: medName };
+    newMedicines[index] = { ...newMedicines[index], medicineName: medName, medicineId: medId };
     setMedicines(newMedicines);
     
     setMedicineSearchQueries(prev => {
@@ -125,6 +163,7 @@ function Order() {
     // Handle different field names
     const pharmName = pharmacist.name || pharmacist.pharmacistName || pharmacist.firstName || "";
     setRequestedByQuery(pharmName);
+    setSelectedPharmacistId(pharmacist.id || pharmacist.pharmacistId);
     setRequestedBySuggestions([]);
     console.log("Selected pharmacist:", pharmacist);
   };
@@ -138,6 +177,37 @@ function Order() {
         bsViewModal.hide();
       }
     }
+    
+    // Set editing mode
+    setIsEditing(true);
+    
+    // Pre-fill form with selected order data
+    if (selectedOrder) {
+      // Set supplier name
+      setSupplierName(selectedOrder.supplierName || "");
+      
+      // Set notes
+      setNotes(selectedOrder.notes || "");
+      
+      // Set requested by pharmacist
+      setRequestedByQuery(selectedOrder.pharmacistName || "");
+      setSelectedPharmacistId(selectedOrder.pharmacistId || null);
+      
+      // Set medicines
+      if (selectedOrder.items && selectedOrder.items.length > 0) {
+        const orderMedicines = selectedOrder.items.map(item => ({
+          medicineName: item.medicineName || "",
+          medicineId: item.medicineId || item.id,
+          quantity: item.quantity || 1
+        }));
+        setMedicines(orderMedicines);
+        
+        // Also set medicine search queries for display
+        const queries = selectedOrder.items.map(item => item.medicineName || "");
+        setMedicineSearchQueries(queries);
+      }
+    }
+    
     // Open create modal after a small delay
     setTimeout(() => {
       const orderModal = document.getElementById('orderModal');
@@ -160,6 +230,281 @@ function Order() {
     return statusColors[status] || "bg-secondary";
   };
 
+  const handleStatusClick = (order) => {
+    Swal.fire({
+      title: "Confirm Status Change",
+      text: `Do you want to request this order?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: themeColor,
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Yes, request it!",
+      cancelButtonText: "Cancel"
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          await dispatch(updateOrderStatus({ orderId: order.id, status: "REQUESTED" })).unwrap();
+          
+          Swal.fire({
+            icon: "success",
+            title: "Status Updated",
+            text: "Order status has been updated to REQUESTED",
+            timer: 3000,
+            showConfirmButton: false
+          });
+          
+          // Refresh orders
+          dispatch(fetchAllOrders());
+        } catch (error) {
+          console.error("Error updating status:", error);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: error?.message || "Failed to update order status"
+          });
+        }
+      }
+    });
+  };
+
+  const handleSubmitOrder = async (e) => {
+    e.preventDefault();
+    
+    // Get form values from state
+    const supplierNameValue = supplierName;
+    const notesValue = notes;
+    
+    // Validate
+    if (!supplierNameValue) {
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Please enter supplier name"
+      });
+      return;
+    }
+    
+    if (!requestedByQuery) {
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Please select a pharmacist"
+      });
+      return;
+    }
+    
+    const validMedicines = medicines.filter(med => med.medicineName && med.quantity > 0 && med.medicineId);
+    
+    if (validMedicines.length === 0) {
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Please select medicines from the suggestions list"
+      });
+      return;
+    }
+    
+    // Build payload - use selectedPharmacistId if available, otherwise find by name
+    let pharmacistId = selectedPharmacistId;
+    if (!pharmacistId) {
+      const foundPharmacist = pharmacistList.find(p => 
+        (p.name || p.pharmacistName || p.firstName) === requestedByQuery
+      );
+      pharmacistId = foundPharmacist?.id || 1;
+    }
+    
+    const payload = {
+      supplierName: supplierNameValue,
+      notes: notesValue || "",
+      pharmacistId: pharmacistId,
+      items: validMedicines.map(med => ({
+        medicineId: med.medicineId,
+        medicineName: med.medicineName,
+        quantity: med.quantity
+      }))
+    };
+    
+    console.log(isEditing ? "Updating order:" : "Creating order:", payload);
+    
+    try {
+      if (isEditing && selectedOrder) {
+        // Update existing order
+        await dispatch(updateOrder({ orderId: selectedOrder.id, orderData: payload })).unwrap();
+        
+        Swal.fire({
+          icon: "success",
+          title: "Order Updated",
+          text: "Pharmacy order updated successfully!",
+          timer: 3000,
+          showConfirmButton: false
+        });
+      } else {
+        // Create new order
+        await dispatch(createOrder(payload)).unwrap();
+        
+        Swal.fire({
+          icon: "success",
+          title: "Order Created",
+          text: "Pharmacy order created successfully!",
+          timer: 3000,
+          showConfirmButton: false
+        });
+      }
+      
+      // Close modal
+      const modal = document.getElementById('orderModal');
+      if (modal) {
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) {
+          bsModal.hide();
+        } else {
+          modal.classList.remove('show');
+          modal.style.display = 'none';
+          document.body.classList.remove('modal-open');
+          const backdrop = document.querySelector('.modal-backdrop');
+          if (backdrop) backdrop.remove();
+        }
+      }
+      
+      // Reset form
+      resetForm();
+      
+      // Refresh orders
+      dispatch(fetchAllOrders());
+    } catch (error) {
+      console.error(isEditing ? "Error updating order:" : "Error creating order:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error?.message || (isEditing ? "Failed to update order" : "Failed to create order")
+      });
+    }
+  };
+
+  const resetForm = () => {
+    setMedicines([{ medicineName: "", quantity: 1 }]);
+    setRequestedByQuery("");
+    setMedicineSearchQueries([]);
+    setMedicineSuggestions([]);
+    setRequestedBySuggestions([]);
+    setSelectedPharmacistId(null);
+    setIsEditing(false);
+    setSelectedOrder(null);
+    setSupplierName("");
+    setNotes("");
+  };
+
+  const handleNewOrderClick = () => {
+    resetForm();
+  };
+
+  const handleReceivedOrder = (order) => {
+    setSelectedOrder(order);
+    
+    // Initialize received items with order items
+    const initialReceivedItems = (order.items || []).map(item => ({
+      medicineName: item.medicineName || "",
+      medicineId: item.medicineId || item.id,
+      orderedQuantity: item.quantity || 0,
+      receivedQuantity: item.quantity || 0,
+      batchNo: "",
+      expireDate: "",
+      manufactureDate: "",
+      manufacturer: "",
+      pricePerUnit: ""
+    }));
+    
+    setReceivedItems(initialReceivedItems);
+    
+    // Open received modal
+    setTimeout(() => {
+      const receivedModal = document.getElementById('receivedModal');
+      if (receivedModal) {
+        const bsReceivedModal = new bootstrap.Modal(receivedModal);
+        bsReceivedModal.show();
+      }
+    }, 100);
+  };
+
+  const handleReceivedItemChange = (index, field, value) => {
+    const updated = [...receivedItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setReceivedItems(updated);
+  };
+
+  const handleSubmitReceived = async (e) => {
+    e.preventDefault();
+    
+    // Get received date
+    const receivedDate = document.getElementById('receivedDate').value;
+    
+    // Validate received items
+    const hasInvalidItems = receivedItems.some(item => 
+      !item.batchNo || !item.expireDate || !item.receivedQuantity
+    );
+    
+    if (hasInvalidItems) {
+      Swal.fire({
+        icon: "warning",
+        title: "Validation Error",
+        text: "Please fill in all required fields for each medicine"
+      });
+      return;
+    }
+    
+    // Build payload - backend expects array directly
+    const payload = receivedItems.map(item => ({
+      medicineId: item.medicineId,
+      medicineName: item.medicineName,
+      batchNumber: item.batchNo,
+      expiryDate: item.expireDate,
+      manufactureDate: item.manufactureDate || null,
+      manufacturer: item.manufacturer || "",
+      pricePerUnit: parseFloat(item.pricePerUnit) || 0,
+      receivedQuantity: parseInt(item.receivedQuantity) || 0,
+      receivedDate: receivedDate
+    }));
+    
+    console.log("Submitting received items:", payload);
+    
+    try {
+      await dispatch(processReceivedOrder({ orderId: selectedOrder.id, receivedData: payload })).unwrap();
+      
+      Swal.fire({
+        icon: "success",
+        title: "Items Received",
+        text: "Medicine items have been received successfully!",
+        timer: 3000,
+        showConfirmButton: false
+      });
+      
+      // Close modal
+      const modal = document.getElementById('receivedModal');
+      if (modal) {
+        const bsModal = bootstrap.Modal.getInstance(modal);
+        if (bsModal) {
+          bsModal.hide();
+        } else {
+          modal.classList.remove('show');
+          modal.style.display = 'none';
+          document.body.classList.remove('modal-open');
+          const backdrop = document.querySelector('.modal-backdrop');
+          if (backdrop) backdrop.remove();
+        }
+      }
+      
+      // Refresh orders
+      dispatch(fetchAllOrders());
+    } catch (error) {
+      console.error("Error submitting received items:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error?.message || "Failed to submit received items"
+      });
+    }
+  };
+
   return (
     <>
       <div>
@@ -171,6 +516,7 @@ function Order() {
             </h5>
             <button
               className="btn btn-outline-primary btn-sm"
+              onClick={handleNewOrderClick}
               data-bs-toggle="modal"
               data-bs-target="#orderModal"
               style={{ borderColor: themeColor, color: themeColor }}
@@ -230,16 +576,19 @@ function Order() {
                         <td>{order.orderDate}</td>
                         <td>{order.items?.length || 0}</td>
                         <td>
-                          <span className={`badge ${getStatusBadge(order.status)} status-badge`}>
+                          <span 
+                            className={`badge ${getStatusBadge(order.status)} status-badge`}
+                            style={{ cursor: "pointer" }}
+                            onClick={() => handleStatusClick(order)}
+                            title="Click to change status"
+                          >
                             {order.status}
                           </span>
                         </td>
                         <td>
                           <button 
                             className="btn btn-sm btn-primary me-2"
-                            onClick={() => handleViewOrder(order)}
-                            data-bs-toggle="modal"
-                            data-bs-target="#viewOrderModal"
+                            onClick={() => handleReceivedOrder(order)}
                           >
                             <i className="fa-solid fa-clipboard-check me-1"></i> Received
                           </button>
@@ -276,7 +625,8 @@ function Order() {
                 style={{ backgroundColor: themeColor }}
               >
                 <h5 className="modal-title" id="orderModalLabel">
-                  <i className="fa-solid fa-cart-plus me-2"></i> Create New Order
+                  <i className={`fa-solid ${isEditing ? 'fa-pen-to-square' : 'fa-cart-plus'} me-2`}></i>
+                  {isEditing ? 'Update Order' : 'Create New Order'}
                 </h5>
                 <button
                   type="button"
@@ -285,7 +635,7 @@ function Order() {
                 />
               </div>
               <div className="modal-body">
-                <form id="newOrderForm">
+                <form id="newOrderForm" onSubmit={handleSubmitOrder}>
                   <div className="mb-3">
                     <label className="form-label">Supplier Name</label>
                     <input
@@ -293,6 +643,8 @@ function Order() {
                       className="form-control"
                       id="departmentSupplier"
                       placeholder="Enter name"
+                      value={supplierName}
+                      onChange={(e) => setSupplierName(e.target.value)}
                       required
                     />
                   </div>
@@ -411,6 +763,8 @@ function Order() {
                       id="notes"
                       placeholder="Additional notes"
                       rows="2"
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
                     />
                   </div>
                   <div className="text-end">
@@ -426,7 +780,8 @@ function Order() {
                       className="btn"
                       style={{ backgroundColor: themeColor, color: "#fff" }}
                     >
-                      <i className="fa-solid fa-plus me-1"></i> Create Order
+                      <i className={`fa-solid ${isEditing ? 'fa-check' : 'fa-plus'} me-1`}></i>
+                      {isEditing ? 'Update Order' : 'Create Order'}
                     </button>
                   </div>
                 </form>
@@ -520,6 +875,144 @@ function Order() {
                 >
                   Close
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 📦 Received Order Modal */}
+        <div className="modal fade" id="receivedModal" tabIndex={-1}>
+          <div className="modal-dialog modal-dialog-centered modal-xl">
+            <div className="modal-content border-0 shadow-lg">
+              <div
+                className="modal-header text-white"
+                style={{ backgroundColor: themeColor }}
+              >
+                <h5 className="modal-title">
+                  <i className="fa-solid fa-clipboard-check me-2"></i> Receive Medicine Items
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  data-bs-dismiss="modal"
+                />
+              </div>
+              <div className="modal-body">
+                {selectedOrder && (
+                  <div>
+                    <div className="row mb-3">
+                      <div className="col-6">
+                        <strong>Order ID:</strong> {selectedOrder.requisitionNumber}
+                      </div>
+                      <div className="col-6">
+                        <strong>Received Date:</strong>
+                        <input
+                          type="date"
+                          className="form-control mt-1"
+                          id="receivedDate"
+                          defaultValue={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                    </div>
+                    <hr />
+                    <form id="receivedForm" onSubmit={handleSubmitReceived}>
+                      {receivedItems.map((item, index) => (
+                        <div key={index} className="card mb-3">
+                          <div className="card-body">
+                            <h6 className="card-title mb-3">
+                              <i className="fa-solid fa-pills me-2"></i>
+                              {item.medicineName}
+                              <span className="badge bg-info text-dark ms-2">
+                                Ordered: {item.orderedQuantity}
+                              </span>
+                            </h6>
+                            <div className="row">
+                              <div className="col-md-3 mb-2">
+                                <label className="form-label">Batch No *</label>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={item.batchNo}
+                                  onChange={(e) => handleReceivedItemChange(index, 'batchNo', e.target.value)}
+                                  required
+                                />
+                              </div>
+                              <div className="col-md-3 mb-2">
+                                <label className="form-label">Expire Date *</label>
+                                <input
+                                  type="date"
+                                  className="form-control"
+                                  value={item.expireDate}
+                                  onChange={(e) => handleReceivedItemChange(index, 'expireDate', e.target.value)}
+                                  required
+                                />
+                              </div>
+                              <div className="col-md-3 mb-2">
+                                <label className="form-label">Manufacture Date</label>
+                                <input
+                                  type="date"
+                                  className="form-control"
+                                  value={item.manufactureDate}
+                                  onChange={(e) => handleReceivedItemChange(index, 'manufactureDate', e.target.value)}
+                                />
+                              </div>
+                              <div className="col-md-3 mb-2">
+                                <label className="form-label">Manufacturer</label>
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  value={item.manufacturer}
+                                  onChange={(e) => handleReceivedItemChange(index, 'manufacturer', e.target.value)}
+                                  placeholder="Enter manufacturer"
+                                />
+                              </div>
+                              <div className="col-md-3 mb-2">
+                                <label className="form-label">Price Per Unit</label>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  value={item.pricePerUnit}
+                                  onChange={(e) => handleReceivedItemChange(index, 'pricePerUnit', e.target.value)}
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              <div className="col-md-3 mb-2">
+                                <label className="form-label">Received Quantity *</label>
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  value={item.receivedQuantity}
+                                  onChange={(e) => handleReceivedItemChange(index, 'receivedQuantity', e.target.value)}
+                                  min="1"
+                                  max={item.orderedQuantity}
+                                  required
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="text-end mt-3">
+                        <button
+                          type="button"
+                          className="btn btn-secondary me-2"
+                          data-bs-dismiss="modal"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="btn"
+                          style={{ backgroundColor: themeColor, color: "#fff" }}
+                        >
+                          <i className="fa-solid fa-check me-1"></i> Submit Received Items
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
             </div>
           </div>

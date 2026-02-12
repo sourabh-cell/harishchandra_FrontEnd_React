@@ -7,8 +7,15 @@ import { addPrescription } from "../../../features/priscriptionSlice";
 
 import {
   fetchMedicines,
+  fetchDepartments,
+  fetchDoctorsByDepartment,
+  fetchActivePatientVisits,
   selectMedicines,
   selectMedicinesStatus,
+  selectDepartments,
+  selectDepartmentsStatus,
+  selectActivePatientVisits,
+  selectActivePatientVisitsStatus,
 } from "../../../features/commanSlice";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -16,25 +23,23 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export default function AddNewPrescription() {
   const dispatch = useDispatch();
 
-  // Department + Doctor
+  // Department from Redux
   const [selectedDept, setSelectedDept] = useState("");
-  const [departments, setDepartments] = useState([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
-  const [departmentsError, setDepartmentsError] = useState(null);
+  const departments = useSelector(selectDepartments);
+  const departmentsStatus = useSelector(selectDepartmentsStatus);
 
+  // Doctor dropdown - fetched based on department
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
   const [doctors, setDoctors] = useState([]);
   const [doctorsLoading, setDoctorsLoading] = useState(false);
-  const [doctorsError, setDoctorsError] = useState(null);
-  const [selectedDoctorId, setSelectedDoctorId] = useState("");
 
-  // Patient Autocomplete
-  const [patients, setPatients] = useState([]);
-  const [patientsLoading, setPatientsLoading] = useState(false);
-  const [patientsError, setPatientsError] = useState(null);
-  const [patientQuery, setPatientQuery] = useState("");
+  // Patient from Redux (active patient visits)
   const [selectedPatientId, setSelectedPatientId] = useState("");
   const [patientAge, setPatientAge] = useState("");
   const [patientGender, setPatientGender] = useState("");
+  const [patientQuery, setPatientQuery] = useState("");
+  const activePatientVisits = useSelector(selectActivePatientVisits);
+  const activePatientVisitsStatus = useSelector(selectActivePatientVisitsStatus);
 
   // Medicines from Redux (object map)
   const medicines = useSelector(selectMedicines);
@@ -57,83 +62,47 @@ export default function AddNewPrescription() {
 
   // Load departments
   useEffect(() => {
-    let mounted = true;
+    if (departmentsStatus === "idle") {
+      dispatch(fetchDepartments());
+    }
+  }, [dispatch, departmentsStatus]);
 
-    const fetchDepartments = async () => {
-      setDepartmentsLoading(true);
-      try {
-        const res = await axios.get(
-          `${API_BASE_URL}/doctor-schedule/departments`
-        );
-        const data = res.data?.data ?? res.data;
-        if (mounted) setDepartments(Array.isArray(data) ? data : []);
-      } catch (err) {
-        if (mounted) setDepartmentsError(err.message);
-      } finally {
-        setDepartmentsLoading(false);
-      }
-    };
-
-    fetchDepartments();
-    return () => (mounted = false);
-  }, []);
-
-  // Load patients
+  // Load active patient visits
   useEffect(() => {
-    let mounted = true;
+    if (activePatientVisitsStatus === "idle") {
+      dispatch(fetchActivePatientVisits());
+    }
+  }, [dispatch, activePatientVisitsStatus]);
 
-    const fetchPatientsList = async () => {
-      setPatientsLoading(true);
-      try {
-        const res = await axios.get(`${API_BASE_URL}/patients/names-and-ids`);
-        const data = res.data?.data ?? res.data;
-        if (mounted) setPatients(Array.isArray(data) ? data : []);
-      } catch (err) {
-        if (mounted) setPatientsError(err.message);
-      } finally {
-        setPatientsLoading(false);
-      }
-    };
-
-    fetchPatientsList();
-    return () => (mounted = false);
-  }, []);
-
-  const handleDeptChange = async (e) => {
-    const deptId = e.target.value;
+  // Fetch doctors when department changes
+  const handleDeptChange = (deptId) => {
     setSelectedDept(deptId);
     setSelectedDoctorId("");
+    setDoctors([]);
 
-    if (!deptId) {
-      setDoctors([]);
-      return;
-    }
-
-    setDoctorsLoading(true);
-    try {
-      const res = await axios.get(
-        `${API_BASE_URL}/doctor-schedule/doctors/${deptId}`
-      );
-      const data = res.data?.data ?? res.data;
-      setDoctors(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setDoctorsError(err.message);
-      setDoctors([]);
-    } finally {
-      setDoctorsLoading(false);
+    if (deptId) {
+      setDoctorsLoading(true);
+      dispatch(fetchDoctorsByDepartment(deptId))
+        .unwrap()
+        .then((data) => {
+          setDoctors(Array.isArray(data) ? data : []);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch doctors:", err);
+          setDoctors([]);
+        })
+        .finally(() => {
+          setDoctorsLoading(false);
+        });
     }
   };
 
   // Filter patient suggestions
   const filteredPatients = patientQuery
-    ? patients
-        .filter((p) => {
-          const q = patientQuery.toLowerCase();
-          return (
-            String(p.fullName).toLowerCase().includes(q) ||
-            String(p.hospitalPatientId).toLowerCase().includes(q)
-          );
-        })
+    ? activePatientVisits
+        .filter((p) =>
+          String(p.patientName).toLowerCase().includes(patientQuery.toLowerCase())
+        )
         .slice(0, 10)
     : [];
 
@@ -227,6 +196,11 @@ export default function AddNewPrescription() {
   const handleReset = () => {
     setSelectedDept("");
     setSelectedPatientId("");
+    setPatientQuery("");
+    setPatientAge("");
+    setPatientGender("");
+    setSelectedDoctorId("");
+    setDoctors([]);
     setRows([
       { medicineId: "", medicineName: "", frequency: "", duration: "" },
     ]);
@@ -250,51 +224,6 @@ export default function AddNewPrescription() {
             name="patientId"
             value={selectedPatientId || ""}
           />
-          <div className="row mb-3">
-            <div className="col-md-3">
-              <label className="form-label fw-semibold">
-                Select Patient Type *
-              </label>
-            </div>
-            <div className="col-md-3">
-              <input
-                className="form-check-input custom-radio"
-                type="radio"
-                name="inlineRadioOptions"
-                id="inlineRadio1"
-                value="option1"
-              />
-              <label className="form-check-label mx-2" htmlFor="inlineRadio1">
-                OPD Patient
-              </label>
-            </div>
-
-            <div className="col-md-3">
-              <input
-                className="form-check-input custom-radio"
-                type="radio"
-                name="inlineRadioOptions"
-                id="inlineRadio2"
-                value="option2"
-              />
-              <label className="form-check-label mx-2" htmlFor="inlineRadio2">
-                IPD Patient
-              </label>
-            </div>
-
-            <div className="col-md-3">
-              <input
-                className="form-check-input custom-radio"
-                type="radio"
-                name="inlineRadioOptions"
-                id="inlineRadio3"
-                value="option3"
-              />
-              <label className="form-check-label mx-2" htmlFor="inlineRadio3">
-                ER Patient
-              </label>
-            </div>
-          </div>
           <hr />
           {/* ---------------- Patient ---------------- */}
           <div className="row mb-4">
@@ -305,8 +234,7 @@ export default function AddNewPrescription() {
                 className="form-control"
                 value={patientQuery}
                 onChange={(e) => {
-                  const value = e.target.value.replace(/[0-9]/g, ""); // remove numbers
-                  setPatientQuery(value);
+                  setPatientQuery(e.target.value);
                   setSelectedPatientId("");
                 }}
                 autoComplete="off"
@@ -320,22 +248,17 @@ export default function AddNewPrescription() {
                 >
                   {filteredPatients.map((p) => (
                     <li
-                      key={p.id}
+                      key={p.patientVisitId}
                       className="list-group-item list-group-item-action"
                       onClick={() => {
-                        setPatientQuery(
-                          `${p.fullName} (${p.hospitalPatientId})`
-                        );
-                        setSelectedPatientId(p.id);
+                        setPatientQuery(p.patientName);
+                        setSelectedPatientId(p.patientVisitId);
                         setPatientAge(p.age || "");
                         setPatientGender(p.gender || "");
                       }}
                       role="button"
                     >
-                      {p.fullName}{" "}
-                      <small className="text-muted">
-                        ({p.hospitalPatientId})
-                      </small>
+                      {p.patientName}
                     </li>
                   ))}
                 </ul>
@@ -357,18 +280,38 @@ export default function AddNewPrescription() {
             </div>
           </div>
 
-          {/* ----------------Doctor & Date ---------------- */}
+          {/* ---------------- Department & Doctor & Date ---------------- */}
           <div className="row mb-3">
-            <div className="col-md-6">
+            <div className="col-md-3">
+              <label className="form-label fw-semibold">Department *</label>
+              <select
+                name="departmentId"
+                className="form-select"
+                value={selectedDept}
+                onChange={(e) => handleDeptChange(e.target.value)}
+                required
+              >
+                <option value="">Select Department</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.department_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-4">
               <label className="form-label fw-semibold">Doctor *</label>
               <select
                 name="doctorId"
                 className="form-select"
                 value={selectedDoctorId}
                 onChange={(e) => setSelectedDoctorId(e.target.value)}
+                disabled={!selectedDept || doctorsLoading}
                 required
               >
-                <option value="">Select Doctor</option>
+                <option value="">
+                  {doctorsLoading ? "Loading..." : "Select Doctor"}
+                </option>
                 {doctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
                     {doc.name}
@@ -376,7 +319,7 @@ export default function AddNewPrescription() {
                 ))}
               </select>
             </div>
-            <div className="col-md-6">
+            <div className="col-md-5">
               <label className="form-label fw-semibold">Date *</label>
               <input
                 type="date"

@@ -80,6 +80,101 @@ export const createOrder = createAsyncThunk(
   }
 );
 
+// PUT /api/pharmacy/orders/{id}
+export const updateOrder = createAsyncThunk(
+  "pharmacyOrder/update",
+  async ({ orderId, orderData }, { rejectWithValue }) => {
+    console.log("updateOrder received:", orderId, orderData);
+    try {
+      const res = await axiosInstance.put(`/pharmacy/orders/${orderId}`, orderData, {
+        headers: { "Content-Type": "application/json" }
+      });
+      return res.data;
+    } catch (err) {
+      if (err.response) {
+        const respData = err.response.data;
+        const errors = Array.isArray(respData)
+          ? respData
+          : respData?.errors || respData?.fieldErrors || undefined;
+        const message =
+          typeof respData === "string"
+            ? respData
+            : respData?.message || respData || err.message;
+        return rejectWithValue({
+          message,
+          status: err.response.status,
+          url: err.config?.url,
+          errors,
+        });
+      }
+      return rejectWithValue({
+        message: err.message || "Network error",
+        code: err.code,
+      });
+    }
+  }
+);
+
+// PUT /api/pharmacy/orders/{id}/status/{status}
+export const updateOrderStatus = createAsyncThunk(
+  "pharmacyOrder/updateStatus",
+  async ({ orderId, status }, { rejectWithValue }) => {
+    console.log("updateOrderStatus received:", orderId, status);
+    try {
+      const res = await axiosInstance.put(`/pharmacy/orders/${orderId}/status/${status}`);
+      return res.data;
+    } catch (err) {
+      if (err.response) {
+        const respData = err.response.data;
+        const message =
+          typeof respData === "string"
+            ? respData
+            : respData?.message || respData || err.message;
+        return rejectWithValue({
+          message,
+          status: err.response.status,
+          url: err.config?.url,
+        });
+      }
+      return rejectWithValue({
+        message: err.message || "Network error",
+        code: err.code,
+      });
+    }
+  }
+);
+
+// PUT /api/pharmacy/orders/process-received/{orderId}
+export const processReceivedOrder = createAsyncThunk(
+  "pharmacyOrder/processReceived",
+  async ({ orderId, receivedData }, { rejectWithValue }) => {
+    console.log("processReceivedOrder received:", orderId, receivedData);
+    try {
+      const res = await axiosInstance.put(`/pharmacy/orders/process-received/${orderId}`, receivedData, {
+        headers: { "Content-Type": "application/json" }
+      });
+      return res.data;
+    } catch (err) {
+      if (err.response) {
+        const respData = err.response.data;
+        const message =
+          typeof respData === "string"
+            ? respData
+            : respData?.message || respData || err.message;
+        return rejectWithValue({
+          message,
+          status: err.response.status,
+          url: err.config?.url,
+        });
+      }
+      return rejectWithValue({
+        message: err.message || "Network error",
+        code: err.code,
+      });
+    }
+  }
+);
+
 const initialState = {
   orders: [],
   allOrders: [],
@@ -90,6 +185,9 @@ const initialState = {
   createStatus: "idle",
   createError: null,
   createErrors: null,
+  updateStatus: "idle",
+  updateError: null,
+  updateErrors: null,
 };
 
 const pharmacyOrderSlice = createSlice({
@@ -160,6 +258,77 @@ const pharmacyOrderSlice = createSlice({
         state.createStatus = "failed";
         state.createError = action.payload?.message || action.error?.message;
         state.createErrors = action.payload?.errors;
+      })
+
+      // Update Order
+      .addCase(updateOrder.pending, (state) => {
+        state.updateStatus = "loading";
+        state.updateError = null;
+        state.updateErrors = null;
+      })
+      .addCase(updateOrder.fulfilled, (state, action) => {
+        state.updateStatus = "succeeded";
+        const updated =
+          action.payload && action.payload.data
+            ? action.payload.data
+            : action.payload;
+        if (updated) {
+          // Update the order in the allOrders array
+          const index = state.allOrders.findIndex(o => o.id === updated.id);
+          if (index !== -1) {
+            state.allOrders[index] = updated;
+          }
+          // Also update in orders array if exists
+          const orderIndex = state.orders.findIndex(o => o.id === updated.id);
+          if (orderIndex !== -1) {
+            state.orders[orderIndex] = updated;
+          }
+        }
+      })
+      .addCase(updateOrder.rejected, (state, action) => {
+        state.updateStatus = "failed";
+        state.updateError = action.payload?.message || action.error?.message;
+        state.updateErrors = action.payload?.errors;
+      })
+
+      // Update Order Status
+      .addCase(updateOrderStatus.fulfilled, (state, action) => {
+        const updated =
+          action.payload && action.payload.data
+            ? action.payload.data
+            : action.payload;
+        if (updated) {
+          // Update the order in the allOrders array
+          const index = state.allOrders.findIndex(o => o.id === updated.id);
+          if (index !== -1) {
+            state.allOrders[index] = updated;
+          }
+          // Also update in orders array if exists
+          const orderIndex = state.orders.findIndex(o => o.id === updated.id);
+          if (orderIndex !== -1) {
+            state.orders[orderIndex] = updated;
+          }
+        }
+      })
+
+      // Process Received Order
+      .addCase(processReceivedOrder.fulfilled, (state, action) => {
+        const updated =
+          action.payload && action.payload.data
+            ? action.payload.data
+            : action.payload;
+        if (updated) {
+          // Update the order in the allOrders array
+          const index = state.allOrders.findIndex(o => o.id === updated.id);
+          if (index !== -1) {
+            state.allOrders[index] = updated;
+          }
+          // Also update in orders array if exists
+          const orderIndex = state.orders.findIndex(o => o.id === updated.id);
+          if (orderIndex !== -1) {
+            state.orders[orderIndex] = updated;
+          }
+        }
       });
   },
 });
@@ -189,3 +358,7 @@ export const selectOrderCreateError = (state) =>
   state.pharmacyOrder?.createError;
 export const selectOrderCreateErrors = (state) =>
   state.pharmacyOrder?.createErrors;
+export const selectOrderUpdateStatus = (state) =>
+  state.pharmacyOrder?.updateStatus;
+export const selectOrderUpdateError = (state) =>
+  state.pharmacyOrder?.updateError;

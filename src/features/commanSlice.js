@@ -2,6 +2,20 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// Add axios interceptor to include auth token in requests
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Thunk to fetch all patients
 export const fetchPatients = createAsyncThunk(
   "comman/fetchPatients",
@@ -51,7 +65,7 @@ export const fetchDoctorsByDepartment = createAsyncThunk(
   async (departmentId, { rejectWithValue }) => {
     try {
       const res = await axios.get(
-        `${API_BASE_URL}/doctor-schedule/doctors/${departmentId}`
+        `${API_BASE_URL}/doctor/${departmentId}`
       );
       // Handle both direct array and wrapped response
       const data = res.data?.data || res.data;
@@ -103,6 +117,22 @@ export const fetchPharmacistNameIds = createAsyncThunk(
   }
 );
 
+// Thunk to fetch active patient visits (name and id)
+export const fetchActivePatientVisits = createAsyncThunk(
+  "comman/fetchActivePatientVisits",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/patient-visits/active-names-and-ids`);
+      const data = res.data?.data || res.data;
+      console.log("Active patient visits API response:", data);
+      return data;
+    } catch (err) {
+      console.error("Failed to fetch active patient visits:", err);
+      return rejectWithValue(err.response?.data || err.message);
+    }
+  }
+);
+
 const commanSlice = createSlice({
   name: "comman",
   initialState: {
@@ -122,6 +152,9 @@ const commanSlice = createSlice({
     pharmacistNameIds: [],
     pharmacistNameIdsStatus: "idle",
     pharmacistNameIdsError: null,
+    activePatientVisits: [],
+    activePatientVisitsStatus: "idle",
+    activePatientVisitsError: null,
   },
   reducers: {
     // optional reducers if needed in future
@@ -149,6 +182,11 @@ const commanSlice = createSlice({
       state.pharmacistNameIds = [];
       state.pharmacistNameIdsStatus = "idle";
       state.pharmacistNameIdsError = null;
+    },
+    clearActivePatientVisits(state) {
+      state.activePatientVisits = [];
+      state.activePatientVisitsStatus = "idle";
+      state.activePatientVisitsError = null;
     },
   },
   extraReducers: (builder) => {
@@ -255,11 +293,28 @@ const commanSlice = createSlice({
       .addCase(fetchPharmacistNameIds.rejected, (state, action) => {
         state.pharmacistNameIdsStatus = "failed";
         state.pharmacistNameIdsError = action.payload || action.error.message;
-      });
+      })
+
+      // active patient visits reducers
+      builder
+        .addCase(fetchActivePatientVisits.pending, (state) => {
+          state.activePatientVisitsStatus = "loading";
+          state.activePatientVisitsError = null;
+        })
+        .addCase(fetchActivePatientVisits.fulfilled, (state, action) => {
+          state.activePatientVisitsStatus = "succeeded";
+          state.activePatientVisits = Array.isArray(action.payload)
+            ? action.payload
+            : action.payload?.data || [];
+        })
+        .addCase(fetchActivePatientVisits.rejected, (state, action) => {
+          state.activePatientVisitsStatus = "failed";
+          state.activePatientVisitsError = action.payload || action.error.message;
+        });
   },
 });
 
-export const { clearPatients, clearDepartments, clearMedicines, clearDoctors, clearPharmacistNameIds } =
+export const { clearPatients, clearDepartments, clearMedicines, clearDoctors, clearPharmacistNameIds, clearActivePatientVisits } =
   commanSlice.actions;
 
 // Selectors
@@ -301,3 +356,10 @@ export const selectPharmacistNameIdsStatus = (state) =>
   state.comman?.pharmacistNameIdsStatus || "idle";
 export const selectPharmacistNameIdsError = (state) =>
   state.comman?.pharmacistNameIdsError || null;
+
+// Selectors for active patient visits
+export const selectActivePatientVisits = (state) => state.comman?.activePatientVisits || [];
+export const selectActivePatientVisitsStatus = (state) =>
+  state.comman?.activePatientVisitsStatus || "idle";
+export const selectActivePatientVisitsError = (state) =>
+  state.comman?.activePatientVisitsError || null;

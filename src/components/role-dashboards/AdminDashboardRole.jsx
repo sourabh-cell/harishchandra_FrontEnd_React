@@ -1,7 +1,26 @@
-// import "./AdminDashboard.css";
-// import dash1 from "../../assets/images/dashboard/dash1.png";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import {
+  fetchAdminDashboardData,
+  selectDashboardStatistics,
+  selectDashboardNotices,
+  selectDashboardLoading,
+  selectDashboardError,
+} from "../../features/dashboardSlice";
 
 const AdminDashboardRole = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const statistics = useSelector(selectDashboardStatistics);
+  const notices = useSelector(selectDashboardNotices);
+  const loading = useSelector(selectDashboardLoading);
+  const error = useSelector(selectDashboardError);
+
+  useEffect(() => {
+    dispatch(fetchAdminDashboardData());
+  }, [dispatch]);
+
   // ===== Dynamic Greeting Logic =====
   const currentHour = new Date().getHours();
   let greeting = "Good Morning";
@@ -10,6 +29,24 @@ const AdminDashboardRole = () => {
     greeting = "Good Afternoon";
   } else if (currentHour >= 16) {
     greeting = "Good Evening";
+  }
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ height: "50vh" }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="alert alert-danger m-4">
+        Error loading dashboard data: {error}
+      </div>
+    );
   }
 
   return (
@@ -22,7 +59,10 @@ const AdminDashboardRole = () => {
           </span>
         </div>
         <div className="d-flex align-items-center">
-          <button className="btn make-appoint rounded-pill me-2">
+          <button
+            className="btn make-appoint rounded-pill me-2"
+            onClick={() => navigate("/dashboard/add-patient-appointment")}
+          >
             <i className="fas fa-plus me-1" /> Make Appointment
           </button>
         </div>
@@ -38,39 +78,14 @@ const AdminDashboardRole = () => {
               <p className="mb-0">Overview of the system.</p>
             </div>
             <div className="card-container">
-              <div className="card-hero">
-                <div className="icon-box new-patient">
-                  <i className="fas fa-procedures" />
-                </div>
-                <div>
-                  <p className="mb-0 fs-4 fw-bold">8</p>
-                  <span className="small">Admitted Patient</span>
-                </div>
-              </div>
-              <div className="card-hero">
-                <div className="icon-box surgeries">
-                  <i className="fas fa-walking" />
-                </div>
-                <div>
-                  <p className="mb-0 fs-4 fw-bold">21</p>
-                  <span className="small">Discharges</span>
-                </div>
-              </div>
-              <div className="card-hero">
-                <div className="icon-box discharge">
-                  <i className="fas fa-pills" />
-                </div>
-                <div>
-                  <p className="mb-0 fs-5 fw-bold">Pharmacy</p>
-                  <span className="small">Stock Alert</span>
-                </div>
-              </div>
+              {/* Cards removed as per user request */}
             </div>
             <img
-              src="../../assets/images/dashboard/dash1.png"
-              className="illustration"
-              alt="Medical team illustration"
-            />
+               src="../../assets/images/dashboard/dash1.png"
+               className="illustration"
+               alt="Medical team illustration"
+               style={{ height: "210px",width: "335px", bottom: "-16px"}}
+             />
           </div>
         </div>
       </div>
@@ -90,7 +105,7 @@ const AdminDashboardRole = () => {
                 <i className="fas fa-bed" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">56</h4>
+                <h4 className="mb-0 fw-bold">{statistics.patientIpdCount}</h4>
                 <p className="mb-0">IPD Patients</p>
               </div>
             </div>
@@ -111,7 +126,7 @@ const AdminDashboardRole = () => {
                 <i className="fas fa-heartbeat" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">210</h4>
+                <h4 className="mb-0 fw-bold">{statistics.patientOpdCount}</h4>
                 <p className="mb-0">OPD Patients</p>
               </div>
             </div>
@@ -132,7 +147,7 @@ const AdminDashboardRole = () => {
                 <i className="fas fa-procedures" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">36</h4>
+                <h4 className="mb-0 fw-bold">{statistics.patientErCount}</h4>
                 <p className="mb-0">ER Patients</p>
               </div>
             </div>
@@ -153,7 +168,7 @@ const AdminDashboardRole = () => {
                 <i className="fas fa-user-md" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">52</h4>
+                <h4 className="mb-0 fw-bold">{statistics.totalActivePatients}</h4>
                 <p className="mb-0">Total Patient</p>
               </div>
             </div>
@@ -176,7 +191,7 @@ const AdminDashboardRole = () => {
                 <i className="fas fa-users" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">120</h4>
+                <h4 className="mb-0 fw-bold">{statistics.totalStaffs}</h4>
                 <p className="mb-0">Total Staff</p>
               </div>
             </div>
@@ -197,8 +212,8 @@ const AdminDashboardRole = () => {
                 <i className="fas fa-calendar-check" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">43</h4>
-                <p className="mb-0">Appointments</p>
+                <h4 className="mb-0 fw-bold">{statistics.todaysAppointments}</h4>
+                <p className="mb-0"> Appointments</p>
               </div>
             </div>
           </div>
@@ -215,11 +230,11 @@ const AdminDashboardRole = () => {
           >
             <div className="d-flex align-items-center">
               <div className="icon-box me-3">
-                <i className="fas fa-file-invoice" />
+                <i className="fas fa-user-md" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">38</h4>
-                <p className="mb-0">Total Doctor</p>
+                <h4 className="mb-0 fw-bold">{statistics.totalAvailableDoctors}</h4>
+                <p className="mb-0">Available Doctors</p>
               </div>
             </div>
           </div>
@@ -239,7 +254,7 @@ const AdminDashboardRole = () => {
                 <i className="fas fa-bed" />
               </div>
               <div>
-                <h4 className="mb-0 fw-bold">82</h4>
+                <h4 className="mb-0 fw-bold">{statistics.availableBeds}</h4>
                 <p className="mb-0" style={{ whiteSpace: "nowrap" }}>
                   Available Beds
                 </p>
@@ -259,7 +274,6 @@ const AdminDashboardRole = () => {
             <div className="d-flex justify-content-between align-items-center mb-2">
               <h6 className="mb-0 fw-bold">LATEST NOTICES</h6>
               <div className="notice-header-tools">
-                <span className="badge bg-danger">3 UNREAD</span>
                 <a href="#" className="text-decoration-none">
                   View All »
                 </a>
@@ -268,53 +282,24 @@ const AdminDashboardRole = () => {
             <hr />
             {/* Notice Items */}
             <div className="flex-grow-1">
-              <div className="notice-item d-flex justify-content-between align-items-center py-2 border-bottom">
-                <div className="d-flex align-items-center">
-                  <span className="text-danger me-2">
-                    <i className="fas fa-procedures" />
-                  </span>
-                  <span className="fw-semibold">Patient Admission Alert</span>
+              {notices.map((notice) => (
+                <div
+                  key={notice.id}
+                  className="notice-item d-flex justify-content-between align-items-center py-2 border-bottom"
+                >
+                  <div className="d-flex align-items-center">
+                    <span className={notice.iconColor + " me-2"}>
+                      <i className={"fas " + notice.icon} />
+                    </span>
+                    <span className="fw-semibold">{notice.title}</span>
+                  </div>
+                  <small className="text-muted">{notice.time}</small>
                 </div>
-                <small className="text-muted">10 min ago</small>
-              </div>
-
-              <div className="notice-item d-flex justify-content-between align-items-center py-2 border-bottom">
-                <div className="d-flex align-items-center">
-                  <span className="text-warning me-2">
-                    <i className="fas fa-user-nurse" />
-                  </span>
-                  <span className="fw-semibold">
-                    Staff Shift Schedule Update
-                  </span>
-                </div>
-                <small className="text-muted">30 min ago</small>
-              </div>
-
-              <div className="notice-item d-flex justify-content-between align-items-center py-2 border-bottom">
-                <div className="d-flex align-items-center">
-                  <span className="text-info me-2">
-                    <i className="fas fa-prescription-bottle-alt" />
-                  </span>
-                  <span className="fw-semibold">Pharmacy Stock Notice</span>
-                </div>
-                <small className="text-muted">1h ago</small>
-              </div>
-
-              <div className="notice-item d-flex justify-content-between align-items-center py-2 border-bottom">
-                <div className="d-flex align-items-center">
-                  <span className="text-primary me-2">
-                    <i className="fas fa-hospital" />
-                  </span>
-                  <span className="fw-semibold">
-                    General Hospital Announcement
-                  </span>
-                </div>
-                <small className="text-muted">Yesterday</small>
-              </div>
+              ))}
             </div>
           </div>
         </div>
-        {/* Doctor Stats */}
+        {/* Hospital Status */}
         <div className="col-lg-6 col-md-12 col-sm-12 d-flex mb-4">
           <div
             className="analytics-card doctor-stats w-100 d-flex flex-column"
@@ -335,36 +320,36 @@ const AdminDashboardRole = () => {
               <div className="col-sm-6 col-12">
                 <div className="p-3 border h-100" style={{ borderRadius: 1 }}>
                   <h5>
-                    150 <small className="text-success">+10%</small>
+                    {statistics.totalDoctors} <small className="text-success"></small>
                   </h5>
-                  <p className="mb-0">Total Users</p>
+                  <p className="mb-0">Total Doctors</p>
                 </div>
               </div>
 
               <div className="col-sm-6 col-12">
                 <div className="p-3 border h-100" style={{ borderRadius: 1 }}>
                   <h5>
-                    35 <small className="text-success">+5%</small>
+                    {statistics.totalHeadNurses} <small className="text-success"></small>
                   </h5>
-                  <p className="mb-0">Active Staff</p>
+                  <p className="mb-0">Total Head Nurses</p>
                 </div>
               </div>
 
               <div className="col-sm-6 col-12">
                 <div className="p-3 border h-100" style={{ borderRadius: 1 }}>
                   <h5>
-                    22 <small className="text-danger">-3%</small>
+                    {statistics.totalBeds} <small className="text-success"></small>
                   </h5>
-                  <p className="mb-0">Pending Requests</p>
+                  <p className="mb-0">Total Beds</p>
                 </div>
               </div>
 
               <div className="col-sm-6 col-12">
                 <div className="p-3 border h-100" style={{ borderRadius: 1 }}>
                   <h5>
-                    98 <small className="text-success">+15%</small>
+                    {statistics.totalAppointments} <small className="text-success"></small>
                   </h5>
-                  <p className="mb-0">System Logs Reviewed</p>
+                  <p className="mb-0">Total Appointments</p>
                 </div>
               </div>
             </div>
