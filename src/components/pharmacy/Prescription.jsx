@@ -33,8 +33,6 @@ function Prescription() {
 
   const themeColor = "#01C0C8";
 
-  // Remove mock medicines array since we now use Redux
-
   useEffect(() => {
     if (fetchStatus === "idle") {
       dispatch(fetchAllPharmacyPrescriptions());
@@ -53,13 +51,16 @@ function Prescription() {
   };
 
   const handleDispense = (prescription) => {
+    console.log("Prescription data:", prescription);
+    console.log("Prescription items:", prescription.items);
     setSelectedPrescription(prescription);
     setDispenseModalOpen(true);
     // Pre-populate with prescription items if available
     if (prescription.items && prescription.items.length > 0) {
+      console.log("Pre-populating with prescription items...");
       setDispenseItems(
         prescription.items.map(item => ({
-          medicineId: item.medicineId || item.id || "", // Fallback to id if medicineId not present
+          medicineId: item.medicineId || item.id || "",
           medicineName: item.medicineName || item.name || "",
           quantity: item.quantity || 1
         }))
@@ -75,9 +76,11 @@ function Prescription() {
   };
 
   const handleMedicineSearch = (index, searchTerm) => {
+    console.log("Searching medicine at index:", index, "term:", searchTerm);
     const updatedItems = [...dispenseItems];
     updatedItems[index].medicineName = searchTerm;
     updatedItems[index].medicineId = "";
+    console.log("Cleared medicineId for index:", index);
     setDispenseItems(updatedItems);
     setActiveMedicineIndex(index);
 
@@ -88,9 +91,13 @@ function Prescription() {
         name
       }));
       
+      console.log("All medicines array:", medicinesArray);
+      
       const filtered = medicinesArray.filter(med =>
         med.name.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      
+      console.log("Filtered results:", filtered);
       
       const itemsWithResults = [...dispenseItems];
       itemsWithResults[index].searchResults = filtered;
@@ -103,10 +110,12 @@ function Prescription() {
   };
 
   const selectMedicine = (index, medicine) => {
+    console.log("Selecting medicine at index:", index, "medicine:", medicine);
     const updatedItems = [...dispenseItems];
     updatedItems[index].medicineId = medicine.id;
     updatedItems[index].medicineName = medicine.name;
     updatedItems[index].searchResults = [];
+    console.log("Updated item:", updatedItems[index]);
     setDispenseItems(updatedItems);
     setActiveMedicineIndex(null);
   };
@@ -130,12 +139,12 @@ function Prescription() {
   };
 
   const handleSubmitDispense = async () => {
-    // Validate - check for valid medicineId (not empty string) and quantity > 0
-    const validItems = dispenseItems.filter(item => 
-      item.medicineId && 
-      item.medicineId.toString().trim() !== "" && 
-      item.quantity > 0
-    );
+    // Log all dispenseItems to debug medicineId
+    console.log("dispenseItems:", dispenseItems);
+    
+    // Validate
+    const validItems = dispenseItems.filter(item => item.medicineId && item.quantity > 0);
+    console.log("validItems:", validItems);
     
     if (validItems.length === 0) {
       Swal.fire({
@@ -161,6 +170,8 @@ function Prescription() {
       quantity: item.quantity
     }));
 
+    console.log("Payload being sent:", payload);
+
     try {
       const response = await axiosInstance.put(`/pharmacy/prescriptions/dispense/${selectedPrescription.id}`, payload);
 
@@ -173,7 +184,7 @@ function Prescription() {
           showConfirmButton: false,
         });
         closeDispenseModal();
-        dispatch(fetchAllPharmacyPrescriptions()); // Refresh the list
+        dispatch(fetchAllPharmacyPrescriptions());
       } else {
         Swal.fire({
           icon: "error",
