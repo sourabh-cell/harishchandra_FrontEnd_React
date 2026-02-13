@@ -151,7 +151,7 @@ export default function AddNewPrescription() {
     const fd = new FormData(form);
 
     const payload = {
-      patientId: Number(fd.get("patientId")),
+      patientVisitId: Number(fd.get("patientVisitId")),
       doctorId: Number(fd.get("doctorId")),
       departmentId: Number(fd.get("departmentId")),
       prescriptionDate: fd.get("prescriptionDate"),
@@ -221,7 +221,7 @@ export default function AddNewPrescription() {
         <form onSubmit={handleSubmit} onReset={handleReset}>
           <input
             type="hidden"
-            name="patientId"
+            name="patientVisitId"
             value={selectedPatientId || ""}
           />
           <hr />
@@ -241,7 +241,7 @@ export default function AddNewPrescription() {
                 required
               />
 
-              {patientQuery && filteredPatients.length > 0 && (
+              {patientQuery && !selectedPatientId && filteredPatients.length > 0 && (
                 <ul
                   className="list-group position-absolute w-100"
                   style={{ zIndex: 1200 }}

@@ -380,7 +380,7 @@ export default function AddNewDonor() {
             <button
               type="submit"
               className="btn text-white"
-              style={{ backgroundColor: "#01C0C8" }}
+              style={{ backgroundColor: "#01C0C8", minWidth: "120px" }}
               disabled={loading}
             >
               {loading ? (

@@ -614,7 +614,14 @@ export default function EditPrescription() {
           </div>
 
           {/* Buttons */}
-          <div className="d-flex justify-content-center mt-4">
+          <div className="d-flex justify-content-center mt-4 gap-3">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => navigate("/dashboard/manage-prescriptions")}
+            >
+              <i className="bi bi-x-circle me-1"></i> Cancel
+            </button>
             <button
               type="submit"
               className="btn btn-primary"

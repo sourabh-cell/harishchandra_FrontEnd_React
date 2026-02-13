@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchAllDonors } from "../../../features/donorSlice";
+import Swal from "sweetalert2";
 
 // This single-file React component is a direct JSX conversion of the provided
 // HTML/CSS/JS donor management page. I fixed runtime errors, normalized field
@@ -8,15 +11,14 @@ import React, { useEffect, useState, useRef } from "react";
 // text so the visible wording remains unchanged.
 
 export default function ManageDonor() {
-  // --- Configuration (kept same names as original) ---
-  const DONOR_CONFIG = {
-    API_BASE_URL: "http://192.168.1.45:8080/api/v1/blood-donors",
-    PAGE_SIZE: 10,
-    TIMEOUT: 10000,
-  };
+  // --- Configuration ---
+  const PAGE_SIZE = 10;
+
+  // --- Redux state ---
+  const dispatch = useDispatch();
+  const { items: allDonors, loading: reduxLoading, error } = useSelector((state) => state.donor || {});
 
   // --- Local state ---
-  const [allDonors, setAllDonors] = useState([]);
   const [filteredDonors, setFilteredDonors] = useState([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -150,7 +152,7 @@ export default function ManageDonor() {
   // --- API service (kept names) ---
   const DonorAPI = {
     async request(endpoint, options = {}) {
-      const url = `${DONOR_CONFIG.API_BASE_URL}${endpoint}`;
+      const url = `${import.meta.env.VITE_API_BASE_URL}/v1/blood-donors${endpoint}`;
       const config = {
         headers: {
           "Content-Type": "application/json",
@@ -318,46 +320,10 @@ export default function ManageDonor() {
     };
   }
 
-  // --- Loading donors and handling errors ---
-  async function loadDonors() {
-    DonorUtils.showLoading(true);
-    try {
-      const response = await DonorAPI.getAllDonors();
-
-      // API could return an array or object with content property — handle common shapes
-      let items = [];
-      if (Array.isArray(response)) items = response;
-      else if (response && Array.isArray(response.content))
-        items = response.content;
-      else if (response && Array.isArray(response.data)) items = response.data;
-      else if (response && typeof response === "object") items = [response];
-
-      const normalized = items.map(normalizeDonor);
-      setAllDonors(normalized);
-      setFilteredDonors(normalized);
-
-      const total = normalized.length;
-      setTotalPages(Math.ceil(total / DONOR_CONFIG.PAGE_SIZE));
-      setCurrentPage(0);
-    } catch (error) {
-      console.error("Error loading donors:", error);
-      DonorUtils.showNotification(
-        "Failed to load donors. Please check your connection.",
-        "danger"
-      );
-      setAllDonors([]);
-      setFilteredDonors([]);
-      setTotalPages(0);
-      setCurrentPage(0);
-    } finally {
-      DonorUtils.showLoading(false);
-    }
-  }
-
   // Initialize datepickers and load donors once
   useEffect(() => {
     DonorUtils.initDatePickers();
-    loadDonors();
+    dispatch(fetchAllDonors());
 
     // create modal refs — guard against missing bootstrap JS (avoid TypeError)
     async function initBootstrapModals() {
@@ -395,6 +361,17 @@ export default function ManageDonor() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync Redux state with local filteredDonors when allDonors changes
+  useEffect(() => {
+    if (allDonors && allDonors.length > 0) {
+      setFilteredDonors(allDonors);
+      setTotalPages(Math.ceil(allDonors.length / PAGE_SIZE));
+    } else {
+      setFilteredDonors([]);
+      setTotalPages(0);
+    }
+  }, [allDonors]);
 
   // --- Safe modal helpers ---
   function showModalById(id) {
@@ -479,6 +456,12 @@ export default function ManageDonor() {
   }, [searchText, bloodGroupFilter, statusFilter, fromDate, toDate, allDonors]);
 
   function applyFilters() {
+    // Guard against undefined allDonors
+    if (!allDonors || !Array.isArray(allDonors)) {
+      setFilteredDonors([]);
+      return;
+    }
+
     const search = (searchText || "").toLowerCase();
     const bloodGroup = bloodGroupFilter;
     const status = statusFilter;
@@ -528,7 +511,7 @@ export default function ManageDonor() {
 
     setFilteredDonors(filtered);
     setCurrentPage(0);
-    setTotalPages(Math.ceil(filtered.length / DONOR_CONFIG.PAGE_SIZE));
+    setTotalPages(Math.ceil(filtered.length / PAGE_SIZE));
   }
 
   function clearAllFilters() {
@@ -548,15 +531,15 @@ export default function ManageDonor() {
   function getPaginatedDonors() {
     // Always use filteredDonors (it is initialized to allDonors on load)
     const donors = filteredDonors;
-    const startIndex = currentPage * DONOR_CONFIG.PAGE_SIZE;
-    return donors.slice(startIndex, startIndex + DONOR_CONFIG.PAGE_SIZE);
+    const startIndex = currentPage * PAGE_SIZE;
+    return donors.slice(startIndex, startIndex + PAGE_SIZE);
   }
 
   function updateDonorCount() {
     const currentDonors = filteredDonors;
     const showing = Math.min(
-      currentDonors.length - currentPage * DONOR_CONFIG.PAGE_SIZE,
-      DONOR_CONFIG.PAGE_SIZE
+      currentDonors.length - currentPage * PAGE_SIZE,
+      PAGE_SIZE
     );
     return {
       showing: currentDonors.length === 0 ? 0 : showing,
@@ -657,9 +640,13 @@ export default function ManageDonor() {
       const response = await DonorAPI.updateDonor(donorId, payload);
 
       if (response) {
-        DonorUtils.showNotification("Donor updated successfully!", "success");
+        Swal.fire({
+          icon: "success",
+          title: "Updated!",
+          text: "Donor updated successfully!",
+        });
         hideModalById("editDonorModal");
-        await loadDonors();
+        dispatch(fetchAllDonors());
       } else {
         throw new Error("Failed to update donor");
       }
@@ -673,50 +660,72 @@ export default function ManageDonor() {
   }
 
   async function deactivateDonorById(donorId) {
-    if (
-      !confirm(
-        "Are you sure you want to deactivate this donor? They will no longer appear in active donor lists."
-      )
-    )
-      return;
+    const result = await Swal.fire({
+      title: "Deactivate Donor",
+      text: "Do you really want to deactivate this donor? They will no longer appear in active donor lists.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, deactivate!",
+      cancelButtonText: "No, cancel!",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       const response = await DonorAPI.deactivateDonor(donorId);
-      if (response && response.success) {
-        DonorUtils.showNotification(
-          "Donor deactivated successfully!",
-          "success"
-        );
-        await loadDonors();
+      // Consider any truthy response as success
+      if (response) {
+        Swal.fire({
+          icon: "success",
+          title: "Deactivated!",
+          text: "Donor deactivated successfully!",
+        });
+        dispatch(fetchAllDonors());
       } else {
         throw new Error("Failed to deactivate donor");
       }
     } catch (error) {
       console.error("Error deactivating donor:", error);
-      DonorUtils.showNotification(
-        "Failed to deactivate donor. Please try again.",
-        "danger"
-      );
+      Swal.fire({
+        icon: "error",
+        title: "Error!",
+        text: "Failed to deactivate donor. Please try again.",
+      });
     }
   }
 
   async function activateDonorById(donorId) {
-    if (!confirm("Are you sure you want to activate this donor?")) return;
+    const result = await Swal.fire({
+      title: "Activate Donor",
+      text: "Do you want to activate this donor?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonText: "Yes, activate!",
+      cancelButtonText: "No, cancel!",
+    });
+
+    if (!result.isConfirmed) return;
 
     try {
       const response = await DonorAPI.activateDonor(donorId);
-      if (response && response.success) {
-        DonorUtils.showNotification("Donor activated successfully!", "success");
-        await loadDonors();
+      // Consider any truthy response as success
+      if (response) {
+        Swal.fire({
+          icon: "success",
+          title: "Activated!",
+          text: "Donor activated successfully!",
+        });
+        dispatch(fetchAllDonors());
       } else {
         throw new Error("Failed to activate donor");
       }
     } catch (error) {
       console.error("Error activating donor:", error);
-      DonorUtils.showNotification(
-        "Failed to activate donor. Please try again.",
-        "danger"
-      );
+      Swal.fire({
+        icon: "error",
+        title: "Error!",
+        text: "Failed to activate donor. Please try again.",
+      });
     }
   }
 
@@ -1454,13 +1463,9 @@ table td {
                         className="form-control"
                         id="editDonorIdField"
                         required
+                        readOnly
+                        disabled
                         value={editingDonor ? editingDonor.donorId : ""}
-                        onChange={(e) =>
-                          setEditingDonor((prev) => ({
-                            ...prev,
-                            donorId: e.target.value,
-                          }))
-                        }
                       />
                     </div>
                     <div className="mb-3">
@@ -1647,13 +1652,8 @@ table td {
                         className="form-select"
                         id="editStatus"
                         required
+                        disabled
                         value={editingDonor ? editingDonor.status : "Active"}
-                        onChange={(e) =>
-                          setEditingDonor((prev) => ({
-                            ...prev,
-                            status: e.target.value,
-                          }))
-                        }
                       >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>

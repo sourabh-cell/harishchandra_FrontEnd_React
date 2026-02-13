@@ -399,6 +399,15 @@ function Order() {
   };
 
   const handleReceivedOrder = (order) => {
+    if (order.status === "DELIVERED") {
+      Swal.fire({
+        icon: "warning",
+        title: "Already Delivered",
+        text: "Medicine is already delivered"
+      });
+      return;
+    }
+    
     setSelectedOrder(order);
     
     // Initialize received items with order items
