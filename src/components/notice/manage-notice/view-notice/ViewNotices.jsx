@@ -303,6 +303,48 @@ const ViewNotices = () => {
                       </td>
                       <td>
                         <div className="d-flex justify-content-center gap-2">
+                          <button
+                            className="btn btn-sm text-white px-3"
+                            style={{ backgroundColor: "#6f42c1" }}
+                            onClick={() => {
+                              // View notice details in modal
+                              const audienceIds = n.targetAudienceIds || n.audience || n.targetAudience || "";
+                              const audienceArr = Array.isArray(audienceIds) 
+                                ? audienceIds 
+                                : String(audienceIds).split(",").map(s => s.trim()).filter(Boolean);
+                              
+                              const audienceLabels = audienceArr.map(id => {
+                                const numId = Number(id);
+                                const roles = { 3: "DOCTOR", 4: "HEADNURSE", 5: "PHARMACIST", 6: "ACCOUNTANT", 7: "HR", 8: "LABORATORIST", 9: "INSURANCE", 10: "RECEPTIONIST" };
+                                return roles[numId] || id;
+                              }).join(", ");
+
+                              Swal.fire({
+                                title: `<div style="color: #01C0C8;"><i class='bi bi-megaphone-fill me-2'></i>${title}</div>`,
+                                html: `
+                                  <div style="text-align: left; background: linear-gradient(135deg, #e3f7f8 0%, #f8f9fa 100%); padding: 20px; border-radius: 12px; border: 1px solid #01C0C8;">
+                                    <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                      <p style="margin-bottom: 8px; color: #01C0C8; font-weight: 600;"><i class='bi bi-calendar-check me-2'></i>Start Date</p>
+                                      <p style="margin-left: 24px; margin-bottom: 12px;">${start ? new Date(start).toLocaleString() : 'N/A'}</p>
+                                      <p style="margin-bottom: 8px; color: #01C0C8; font-weight: 600;"><i class='bi bi-calendar-x me-2'></i>End Date</p>
+                                      <p style="margin-left: 24px; margin-bottom: 12px;">${end ? new Date(end).toLocaleString() : 'N/A'}</p>
+                                      <p style="margin-bottom: 8px; color: #01C0C8; font-weight: 600;"><i class='bi bi-people me-2'></i>Target Audience</p>
+                                      <p style="margin-left: 24px;">${audienceLabels || 'None'}</p>
+                                    </div>
+                                    <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                      <p style="margin-bottom: 8px; color: #01C0C8; font-weight: 600;"><i class='bi bi-file-text me-2'></i>Description</p>
+                                      <div style="margin-left: 24px; max-height: 150px; overflow-y: auto;">${desc || 'N/A'}</div>
+                                    </div>
+                                  </div>
+                                `,
+                                width: '550px',
+                                confirmButtonText: 'Close',
+                                confirmButtonColor: '#01C0C8'
+                              });
+                            }}
+                          >
+                            <i className="bi bi-eye"></i> View
+                          </button>
                           <NavLink
                             to={`/dashboard/edit-notice/${n.id || n.noticeId}`}
                             className="btn btn-sm text-white px-3"

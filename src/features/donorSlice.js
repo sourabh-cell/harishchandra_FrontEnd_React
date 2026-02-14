@@ -51,11 +51,43 @@ export const fetchAllDonors = createAsyncThunk(
   }
 );
 
+// GET donor name, ID and blood group for auto-suggestion from /api/v1/blood-donors
+export const fetchDonorNameAndId = createAsyncThunk(
+  "donor/fetchDonorNameAndId",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/v1/blood-donors`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        return rejectWithValue({ status: res.status, message: text || res.statusText });
+      }
+
+      const data = await res.json();
+      // Map the data to include only donorName, donorId, and bloodGroup
+      const mappedData = data.map((donor) => ({
+        donorName: donor.donorName || donor.donor_name || "",
+        donorId: donor.donorId || donor.donor_id || "",
+        bloodGroup: donor.bloodGroup || donor.blood_group || "",
+      }));
+      return mappedData;
+    } catch (err) {
+      return rejectWithValue({ message: err.message });
+    }
+  }
+);
+
 const donorSlice = createSlice({
   name: "donor",
   initialState: {
     items: [],
     item: null,
+    donorNameIdList: [],
     loading: false,
     error: null,
     success: false,
@@ -96,6 +128,19 @@ const donorSlice = createSlice({
         state.items = action.payload;
       })
       .addCase(fetchAllDonors.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || action.error;
+      })
+      // Fetch Donor Name and ID for Auto-suggestion
+      .addCase(fetchDonorNameAndId.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDonorNameAndId.fulfilled, (state, action) => {
+        state.loading = false;
+        state.donorNameIdList = action.payload;
+      })
+      .addCase(fetchDonorNameAndId.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || action.error;
       });

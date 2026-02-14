@@ -1154,7 +1154,7 @@ const Layout = () => {
                       </li>
                       <li className="nav-item">
                         <NavLink className="nav-link" to="add-stock">
-                          Add Blood Stock
+                          Add New Donation
                         </NavLink>
                       </li>
                       <li className="nav-item">

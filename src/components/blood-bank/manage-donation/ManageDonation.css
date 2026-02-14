@@ -1,0 +1,104 @@
+.loading-spinner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.header-bar {
+  background-color: #01c0c8;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.filter-section {
+  background: #fff;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.table-container {
+  background: #fff;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.count-badge {
+  background: #01c0c8;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.form-header h4 {
+  font-weight: 600;
+}
+
+.badge {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+}
+
+.btn-group-sm .btn {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+.table th {
+  vertical-align: middle;
+  text-align: center;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+.pagination {
+  margin: 0;
+}
+
+.pagination .page-link {
+  color: #01c0c8;
+}
+
+.pagination .active .page-link {
+  background-color: #01c0c8;
+  border-color: #01c0c8;
+}
+
+.pagination .page-link:hover {
+  color: #018a8f;
+}
+
+.modal-header {
+  border-top-left-radius: 0.3rem;
+  border-top-right-radius: 0.3rem;
+}
+
+@media (max-width: 768px) {
+  .container-fluid {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  
+  .header-bar h4 {
+    font-size: 1rem;
+  }
+  
+  .filter-section .row .col-md-4,
+  .filter-section .row .col-md-3 {
+    margin-bottom: 10px;
+  }
+}

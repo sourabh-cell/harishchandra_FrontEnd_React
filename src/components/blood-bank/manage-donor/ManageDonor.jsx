@@ -1019,13 +1019,7 @@ table td {
             </span>{" "}
             donors
           </span>
-          <button
-            className="btn btn-success btn-sm"
-            id="addDonorBtn"
-            onClick={handleAddDonorClick}
-          >
-            <i className="fas fa-plus me-1"></i> Add Donor
-          </button>
+         
         </div>
       </div>
 
