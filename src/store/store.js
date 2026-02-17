@@ -32,6 +32,8 @@ import pharmacyOrderReducer from "../features/pharmacyOrderSlice";
 import patientRegistrationListReducer from "../features/patientRegistrationListSlice";
 import dashboardReducer from "../features/dashboardSlice";
 import donorReducer from "../features/donorSlice";
+import donationReducer from "../features/donationSlice";
+import bloodStockReducer from "../features/bloodStockSlice";
 
 export const store = configureStore({
   reducer: {
@@ -68,6 +70,8 @@ export const store = configureStore({
     pharmacyOrder: pharmacyOrderReducer,
     dashboard: dashboardReducer,
     donor: donorReducer,
+    donation: donationReducer,
+    bloodStock: bloodStockReducer,
   },
 });
 

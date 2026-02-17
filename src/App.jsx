@@ -30,7 +30,8 @@ import UpdateHelthPackage from "./components/helth-package/update-package/Update
 import UpdateAsset from "./components/asset-management/update-asset/UpdateAsset";
 import AddNewDonor from "./components/blood-bank/add-new-donor/AddNewDonor";
 import ManageDonor from "./components/blood-bank/manage-donor/ManageDonor";
-import AddBloodStock from "./components/blood-bank/add-stock/AddBloodStock";
+import AddNewDonation from "./components/blood-bank/add-stock/AddNewDonation.jsx";
+import ManageDonation from "./components/blood-bank/manage-donation/ManageDonation.jsx";
 import BloodStock from "./components/blood-bank/blood-stock/BloodStock";
 import AddDonor from "./components/blood-bank/add-new-donor/AddNewDonor.jsx";
 import BabyBirthCertificate from "./components/reports/baby-birth-certificate/BabyBirthCertificate";
@@ -346,8 +347,12 @@ function App() {
           element: <ManageDonor />,
         },
         {
-          path: "add-stock",
-          element: <AddBloodStock />,
+          path: "add-new-donation",
+          element: <AddNewDonation />,
+        },
+        {
+          path: "manage-donations",
+          element: <ManageDonation />,
         },
         {
           path: "manage-blood-stock",

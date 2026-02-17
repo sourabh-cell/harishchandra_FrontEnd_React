@@ -500,10 +500,17 @@ export const sidebarMenu = [
         permissions: ["DONOR_LIST"],
       },
       {
-        title: "Add Blood Stock",
-        path: "/dashboard/add-stock",
+        title: "Add New Donation",
+        path: "add-new-donation",
         permissions: ["BLOOD_STOCK_ADD"],
       },
+      
+      {
+       title: "Manage Donations",
+       path: "/dashboard/manage-donations",
+        permissions: ["BLOOD_STOCK_LIST", "BLOOD_STOCK_UPDATE"], 
+      },
+
       {
         title: "Manage Blood Stock",
         path: "/dashboard/manage-blood-stock",
@@ -569,6 +576,27 @@ export const sidebarMenu = [
           "PHARMACY_BILL_GENERATE",
         ],
       },
+    ],
+  },
+
+
+  //Notices Menu
+  {
+    title: "Notices",
+    icon: "fa fa-bell",
+    collapseId: "notices-menu",
+    roles: ["SUPER_ADMIN", "ADMIN", "HR"],
+    children: [
+      {
+        title: "Add Notice",  
+        path: "add-new-notice",
+        permissions: ["NOTICE_ADD"],
+      },
+   {
+        title: "Manage Notices",
+        path: "/dashboard/manage-notices",
+        permissions: ["NOTICE_LIST", "NOTICE_UPDATE", "NOTICE_DELETE"],
+   }
     ],
   },
 
