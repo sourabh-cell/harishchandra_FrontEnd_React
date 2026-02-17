@@ -318,7 +318,7 @@ const ManageDethCertificates = () => {
                   </p>
                   <p>
                     <strong>Deceased Name:</strong>{" "}
-                    {selected.deceasedName || selected.name || "-"}
+                    {selected.fullName || selected.name || "-"}
                   </p>
                   <p>
                     <strong>Place of Death:</strong>{" "}
@@ -340,7 +340,7 @@ const ManageDethCertificates = () => {
                     <strong>Issue Date:</strong> {selected.issueDate || "-"}
                   </p>
                   <p>
-                    <strong>Age:</strong> {selected.age ?? "-"}
+                    <strong>Age:</strong> {selected.ageAtDeath ?? "-"}
                   </p>
                   <p>
                     <strong>Gender:</strong> {selected.gender || "-"}

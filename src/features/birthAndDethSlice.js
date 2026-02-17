@@ -64,8 +64,8 @@ export const searchPatients = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       // Use the same normalization logic as fetchMothers but against
-      // the /birth-report/ipd/patient endpoint (no query param).
-      const res = await fetch(`${API_BASE_URL}/death-certificate/ipd/patient`);
+      // the /death-certificate/ipd-er/patient endpoint (no query param).
+      const res = await fetch(`${API_BASE_URL}/death-certificate/ipd-er/patient`);
       console.log("searchPatients fetch response:", res);
       if (!res.ok) {
         const text = await res.text();
@@ -145,16 +145,8 @@ export const createDeathCertificate = createAsyncThunk(
   async (deathData, { rejectWithValue }) => {
     try {
       // Map incoming deathData to backend payload expected shape
-      // Determine numeric patientId to send (backend expects Long)
-      let patientIdValue = null;
-      if (deathData.patientId !== undefined && deathData.patientId !== null) {
-        const n = Number(deathData.patientId);
-        patientIdValue = isNaN(n) ? null : n;
-      } else if (deathData.hospitalPatientId) {
-        const n2 = Number(deathData.hospitalPatientId);
-        patientIdValue = isNaN(n2) ? null : n2;
-      }
-
+      // Use patientVisitId from the form
+      console.log("deathData received in thunk:", deathData);
       const payload = {
         fullName: deathData.deceasedName,
         gender: deathData.gender,
@@ -170,9 +162,11 @@ export const createDeathCertificate = createAsyncThunk(
         contactNumber: deathData.contactNumber || null,
         dateOfBirth: deathData.birthDate || null,
         issueDate: deathData.issueDate,
-        // backend expects patientId (numeric Long)
-        patientId: patientIdValue,
+        // backend expects patientVisitId (numeric Long)
+        patientVisitId: deathData.patientVisitId ? Number(deathData.patientVisitId) : null,
       };
+
+      console.log("Payload being sent:", payload);
 
       // Do NOT include date of birth in the payload per requirements
 
@@ -244,17 +238,9 @@ export const updateDeathCertificate = createAsyncThunk(
   "birthAndDeth/updateDeathCertificate",
   async ({ id, deathData }, { rejectWithValue }) => {
     try {
-      // Resolve numeric patientId from either patientId or hospitalPatientId
-      let patientIdValue = null;
-      if (deathData?.patientId !== undefined && deathData?.patientId !== null) {
-        const n = Number(deathData.patientId);
-        patientIdValue = isNaN(n) ? null : n;
-      } else if (deathData?.hospitalPatientId) {
-        const n2 = Number(deathData.hospitalPatientId);
-        patientIdValue = isNaN(n2) ? null : n2;
-      }
-
+      // Resolve numeric patientVisitId from form
       const payload = {
+        id: id, // Include ID in payload
         fullName: deathData.deceasedName,
         gender: deathData.gender,
         dateOfDeath: deathData.deathDate,
@@ -268,8 +254,11 @@ export const updateDeathCertificate = createAsyncThunk(
         contactNumber: deathData.contactNumber || null,
         dateOfBirth: deathData.birthDate || null,
         issueDate: deathData.issueDate,
-        patientId: patientIdValue,
+        // backend expects patientVisitId (numeric Long)
+        patientVisitId: deathData.patientVisitId ? Number(deathData.patientVisitId) : null,
       };
+
+      console.log("Update Payload being sent:", payload);
 
       const response = await fetch(`${API_BASE_URL}/death-certificate/${id}`, {
         method: "PUT",

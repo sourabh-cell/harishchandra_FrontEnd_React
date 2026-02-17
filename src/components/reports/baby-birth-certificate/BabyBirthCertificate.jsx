@@ -65,8 +65,10 @@ const BabyBirthCertificateForm = () => {
       fatherName: values.father,
       contactNumber: values.mobile,
       email: "",
-      motherPatientId: selectedMother ? selectedMother.id : null,
+      motherPatientId: selectedMother ? selectedMother.motherPatientId : null,
     };
+
+    console.log("Birth Certificate Payload:", payload);
 
     try {
       await dispatch(createBirthCertificate(payload)).unwrap();
@@ -214,7 +216,7 @@ const BabyBirthCertificateForm = () => {
                               setFieldValue("address", mother.address || "");
                               setFieldValue(
                                 "doctor",
-                                mother.attendingDoctor || ""
+                                mother.doctorName || ""
                               );
                               setMotherSearch("");
                               setIsMotherDropdownOpen(false);

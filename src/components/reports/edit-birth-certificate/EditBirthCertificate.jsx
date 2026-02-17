@@ -27,7 +27,7 @@ const EditBirthCertificate = () => {
   const birthReportsStatus = useSelector(selectBirthReportsStatus);
 
   const [initialValues, setInitialValues] = useState({
-    hospitalName: "HarishChandra Hospital",
+    hospitalName: "HarishChandra MultiSpeciality Hospital",
     certificateNo: "",
     childName: "",
     dob: "",
@@ -69,7 +69,7 @@ const EditBirthCertificate = () => {
 
       if (certificate) {
         setInitialValues({
-          hospitalName: certificate.placeOfBirth || "HarishChandra Hospital",
+          hospitalName: "HarishChandra MultiSpeciality Hospital",
           certificateNo: certificate.certificateNumber || "",
           childName: certificate.childName || "",
           dob: certificate.dateOfBirth || "",
@@ -260,6 +260,7 @@ const EditBirthCertificate = () => {
                     id="hospitalName"
                     value={values.hospitalName}
                     onChange={handleChange}
+                    readOnly
                   />
                   {touched.hospitalName && errors.hospitalName && (
                     <div className="text-danger small">
@@ -444,6 +445,14 @@ const EditBirthCertificate = () => {
               </div>
 
               <div className="text-center mt-4">
+                <button
+                  type="button"
+                  className="btn btn-secondary px-4 me-2"
+                  onClick={() => navigate("/dashboard/manage-birth-certificates")}
+                >
+                  <i className="bi bi-x-circle me-1"></i>
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   className="btn text-white px-4"

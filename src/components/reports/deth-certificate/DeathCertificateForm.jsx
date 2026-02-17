@@ -25,7 +25,7 @@ const DeathCertificateForm = () => {
     address: "",
     contactNumber: "",
     hospitalPatientId: "",
-    patientId: null,
+    patientVisitId: null,
     doctor: "",
     signatory: "",
     issueDate: "",
@@ -55,16 +55,19 @@ const DeathCertificateForm = () => {
 
   // Normalize Redux patients into a local consistent shape for filtering
   useEffect(() => {
+    console.log("Raw patients from Redux:", patients);
     const normalized = (patients || []).map((p) => {
       if (!p || typeof p !== "object") return p;
-      const id = p.id ?? p.patientId ?? p._id ?? null;
-      const name = p.name ?? p.fullName ?? p.patient_name ?? "";
+      // Handle new API response format: patientVisitId, patientName, hospitalPatientId, doctorName, patientId, gender
+      const id = p.patientVisitId ?? p.id ?? p.patientId ?? p._id ?? null;
+      const name = p.patientName ?? p.name ?? p.fullName ?? p.patient_name ?? "";
       const hospital_patient_id =
-        p.hospital_patient_id ?? p.hospitalPatientId ?? p.hospital_id ?? "";
+        p.hospitalPatientId ?? p.hospital_patient_id ?? p.hospital_id ?? "";
       const contactNumber =
         p.contactNumber ?? p.contact_number ?? p.phone ?? p.mobile ?? "";
       const address = p.address ?? p.addr ?? p.addressLine ?? "";
       const attendingDoctor =
+        p.doctorName ??
         p.attendingDoctor ??
         p.attending_doctor ??
         p.doctor ??
@@ -73,6 +76,7 @@ const DeathCertificateForm = () => {
       const gender = p.gender ?? p.sex ?? "";
       const birthDate =
         p.birthDate ?? p.dob ?? p.date_of_birth ?? p.DOB ?? p.birth_date ?? "";
+      console.log("Normalized patient:", { id, name, hospital_patient_id, gender, attendingDoctor });
       return {
         ...p,
         id,
@@ -83,8 +87,11 @@ const DeathCertificateForm = () => {
         attendingDoctor,
         gender,
         birthDate,
+        patientVisitId: p.patientVisitId ?? null,
+        patientId: p.patientId ?? null,
       };
     });
+    console.log("Normalized patients array:", normalized);
     setPatientsLocal(normalized);
   }, [patients]);
 
@@ -129,7 +136,8 @@ const DeathCertificateForm = () => {
 
   // Filter patients as user types (use normalized local patients)
   useEffect(() => {
-    if (!patientSearch) {
+    // Don't filter if search looks like a display string (has parentheses with ID)
+    if (!patientSearch || patientSearch.includes("(")) {
       setFilteredPatients([]);
       setIsDropdownOpen(false);
       return;
@@ -140,12 +148,22 @@ const DeathCertificateForm = () => {
       if (!p) return false;
       const hp = (p.hospital_patient_id || "").toString().toLowerCase();
       const idStr = p.id ? String(p.id).toLowerCase() : "";
+      const visitIdStr = p.patientVisitId ? String(p.patientVisitId).toLowerCase() : "";
       const name = (p.name || "").toLowerCase();
-      return hp.includes(q) || idStr.includes(q) || name.includes(q);
+      
+      // Also check for display format: "Name (ID)"
+      const displayStr = `${name} ${hp} ${visitIdStr}`.toLowerCase();
+      
+      return hp.includes(q) || idStr.includes(q) || visitIdStr.includes(q) || name.includes(q) || displayStr.includes(q);
     });
 
     setFilteredPatients(filtered);
-    setIsDropdownOpen(true);
+    // Only open dropdown if we have results
+    if (filtered.length > 0) {
+      setIsDropdownOpen(true);
+    } else {
+      setIsDropdownOpen(false);
+    }
   }, [patientSearch, patientsLocal]);
 
   // If the search resolves to a single exact match, populate gender from DB
@@ -158,10 +176,11 @@ const DeathCertificateForm = () => {
     const q = String(patientSearch).trim().toLowerCase();
     const hp = (p.hospital_patient_id || "").toString().toLowerCase();
     const idStr = p.id ? String(p.id).toLowerCase() : "";
+    const visitIdStr = p.patientVisitId ? String(p.patientVisitId).toLowerCase() : "";
     const name = (p.name || "").toLowerCase();
 
-    // Exact-match on hospital id, id or full name
-    if (q === hp || q === idStr || q === name) {
+    // Exact-match on hospital id, id, patientVisitId or full name
+    if (q === hp || q === idStr || q === visitIdStr || q === name) {
       setForm((prev) => ({
         ...prev,
         gender: p.gender || prev.gender,
@@ -169,6 +188,7 @@ const DeathCertificateForm = () => {
           p.hospital_patient_id || p.id || prev.hospitalPatientId,
         birthDate: p.birthDate || prev.birthDate,
         deceasedName: p.name || prev.deceasedName,
+        patientVisitId: p.patientVisitId ?? prev.patientVisitId ?? null,
       }));
       // close dropdown since we've auto-filled
       setIsDropdownOpen(false);
@@ -178,6 +198,9 @@ const DeathCertificateForm = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Print payload to console
+    console.log("Death Certificate Payload:", form);
+    console.log("Gender in form:", form.gender);
     // Dispatch createDeathCertificate thunk (slice will map to backend payload)
     dispatch(createDeathCertificate(form))
       .unwrap()
@@ -192,8 +215,27 @@ const DeathCertificateForm = () => {
           timer: 2000,
           showConfirmButton: false,
         });
-        // Optionally reset the form
-        // setForm({ ...initial state ... });
+        // Reset the form after successful creation
+        setForm({
+          hospitalName: "HarishChandra Hospital",
+          certNumber: "",
+          deceasedName: "",
+          gender: "",
+          deathDate: "",
+          birthDate: "",
+          deathTime: "",
+          age: "",
+          cause: "",
+          place: "",
+          address: "",
+          contactNumber: "",
+          hospitalPatientId: "",
+          patientVisitId: null,
+          doctor: "",
+          signatory: "",
+          issueDate: "",
+        });
+        setPatientSearch("");
       })
       .catch((err) => {
         console.error("Failed to create death certificate:", err);
@@ -203,9 +245,6 @@ const DeathCertificateForm = () => {
           text: String(err?.message || err || "Unknown error"),
         });
       });
-    // Optionally reset the form
-    // setForm({ ...initial state ... });
-    // setPatientId("");
   };
 
   return (
@@ -246,9 +285,33 @@ const DeathCertificateForm = () => {
                 className="form-control"
                 placeholder="Search by name or patient ID"
                 value={patientSearch}
-                onChange={(e) => setPatientSearch(e.target.value)}
+                onChange={(e) => {
+                  setPatientSearch(e.target.value);
+                  // When typing, reset the patient form fields
+                  if (!e.target.value) {
+                    setForm((prev) => ({
+                      ...prev,
+                      deceasedName: "",
+                      gender: "",
+                      contactNumber: "",
+                      address: "",
+                      doctor: "",
+                      hospitalPatientId: "",
+                      patientVisitId: null,
+                      birthDate: "",
+                    }));
+                  }
+                }}
                 onFocus={() => {
-                  if (filteredPatients.length) setIsDropdownOpen(true);
+                  // Only show dropdown if there's a search or patients exist
+                  if (patientSearch || patientsLocal.length > 0) {
+                    if (filteredPatients.length > 0) {
+                      setIsDropdownOpen(true);
+                    } else if (patientSearch && patientsLocal.length > 0) {
+                      // Trigger filtering
+                      setIsDropdownOpen(true);
+                    }
+                  }
                 }}
                 autoComplete="off"
               />
@@ -265,9 +328,13 @@ const DeathCertificateForm = () => {
                     filteredPatients.map((p) => (
                       <button
                         type="button"
-                        key={p.id || p.hospital_patient_id}
+                        key={p.patientVisitId || p.id || p.hospital_patient_id}
                         className="list-group-item list-group-item-action"
                         onClick={() => {
+                          // First close dropdown and clear filtered patients
+                          setIsDropdownOpen(false);
+                          setFilteredPatients([]);
+                          
                           setForm((prev) => ({
                             ...prev,
                             deceasedName: p.name || prev.deceasedName,
@@ -278,13 +345,12 @@ const DeathCertificateForm = () => {
                             doctor: p.attendingDoctor || prev.doctor,
                             hospitalPatientId:
                               p.hospital_patient_id || p.id || "",
-                            patientId: p.id ?? prev.patientId ?? null,
+                            patientVisitId: p.patientVisitId ?? prev.patientVisitId ?? null,
                             birthDate: p.birthDate || prev.birthDate || "",
                           }));
                           setPatientSearch(
                             `${p.name} (${p.hospital_patient_id || p.id})`
                           );
-                          setIsDropdownOpen(false);
                         }}
                       >
                         {p.name} ({p.hospital_patient_id})

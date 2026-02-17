@@ -33,12 +33,17 @@ const EditDeathCertificateForm = () => {
     contactNumber: "",
     hospitalPatientId: "",
     patientId: null,
+    patientVisitId: null,
     doctor: "",
     signatory: "",
     issueDate: "",
   });
 
   const [ageDetail, setAgeDetail] = useState("");
+  const [patientSearch, setPatientSearch] = useState("");
+  const [patientsLocal, setPatientsLocal] = useState([]);
+  const [filteredPatients, setFilteredPatients] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { id } = useParams();
@@ -58,6 +63,71 @@ const EditDeathCertificateForm = () => {
   // Patients list for DOB fallback
   const patients = useSelector(selectPatients);
   const patientsStatus = useSelector(selectPatientsStatus);
+
+  // Fetch patients on mount
+  useEffect(() => {
+    if (patientsStatus === "idle" || patientsStatus === undefined) {
+      dispatch(searchPatients());
+    }
+  }, [dispatch, patientsStatus]);
+
+  // Normalize patients
+  useEffect(() => {
+    const normalized = (patients || []).map((p) => {
+      if (!p || typeof p !== "object") return p;
+      const id = p.patientVisitId ?? p.id ?? p.patientId ?? p._id ?? null;
+      const name = p.patientName ?? p.name ?? p.fullName ?? p.patient_name ?? "";
+      const hospital_patient_id =
+        p.hospitalPatientId ?? p.hospital_patient_id ?? p.hospital_id ?? "";
+      const contactNumber =
+        p.contactNumber ?? p.contact_number ?? p.phone ?? p.mobile ?? "";
+      const address = p.address ?? p.addr ?? p.addressLine ?? "";
+      const attendingDoctor =
+        p.doctorName ?? p.attendingDoctor ?? p.doctor ?? "";
+      const gender = p.gender ?? p.sex ?? "";
+      const birthDate = p.birthDate ?? p.dob ?? p.date_of_birth ?? "";
+      return {
+        ...p,
+        id,
+        name,
+        hospital_patient_id,
+        contactNumber,
+        address,
+        attendingDoctor,
+        gender,
+        birthDate,
+        patientVisitId: p.patientVisitId ?? null,
+        patientId: p.patientId ?? null,
+      };
+    });
+    setPatientsLocal(normalized);
+  }, [patients]);
+
+  // Filter patients
+  useEffect(() => {
+    if (!patientSearch || patientSearch.includes("(")) {
+      setFilteredPatients([]);
+      setIsDropdownOpen(false);
+      return;
+    }
+
+    const q = String(patientSearch).trim().toLowerCase();
+    const filtered = patientsLocal.filter((p) => {
+      if (!p) return false;
+      const hp = (p.hospital_patient_id || "").toString().toLowerCase();
+      const idStr = p.id ? String(p.id).toLowerCase() : "";
+      const visitIdStr = p.patientVisitId ? String(p.patientVisitId).toLowerCase() : "";
+      const name = (p.name || "").toLowerCase();
+      return hp.includes(q) || idStr.includes(q) || visitIdStr.includes(q) || name.includes(q);
+    });
+
+    setFilteredPatients(filtered);
+    if (filtered.length > 0) {
+      setIsDropdownOpen(true);
+    } else {
+      setIsDropdownOpen(false);
+    }
+  }, [patientSearch, patientsLocal]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -185,6 +255,7 @@ const EditDeathCertificateForm = () => {
           prev.contactNumber,
         hospitalPatientId: selectedDeath.patientId || prev.hospitalPatientId,
         patientId: selectedDeath.patientId ?? prev.patientId,
+        patientVisitId: selectedDeath.patientVisitId ?? prev.patientVisitId,
         doctor:
           selectedDeath.attendingDoctor || selectedDeath.doctor || prev.doctor,
         issueDate: selectedDeath.issueDate || prev.issueDate,
@@ -216,6 +287,7 @@ const EditDeathCertificateForm = () => {
             found.contactNumber || found.mobileNumber || prev.contactNumber,
           hospitalPatientId: found.patientId || prev.hospitalPatientId,
           patientId: found.patientId ?? prev.patientId,
+          patientVisitId: found.patientVisitId ?? prev.patientVisitId,
           doctor: found.attendingDoctor || found.doctor || prev.doctor,
           issueDate: found.issueDate || prev.issueDate,
           certNumber: found.certificateNumber || prev.certNumber,
@@ -319,6 +391,82 @@ const EditDeathCertificateForm = () => {
                 disabled={isLoadingRecord}
                 required
               />
+            </div>
+            <div className="col-md-6 position-relative">
+              <label className="form-label fw-semibold">
+                Patient (Name or ID)
+              </label>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search by name or patient ID"
+                value={patientSearch}
+                onChange={(e) => {
+                  setPatientSearch(e.target.value);
+                  if (!e.target.value) {
+                    setForm((prev) => ({
+                      ...prev,
+                      deceasedName: "",
+                      gender: "",
+                      contactNumber: "",
+                      address: "",
+                      doctor: "",
+                      hospitalPatientId: "",
+                      patientVisitId: null,
+                      birthDate: "",
+                    }));
+                  }
+                }}
+                onFocus={() => {
+                  if (patientSearch || patientsLocal.length > 0) {
+                    if (filteredPatients.length > 0) {
+                      setIsDropdownOpen(true);
+                    }
+                  }
+                }}
+                autoComplete="off"
+                disabled={isLoadingRecord}
+              />
+
+              {isDropdownOpen && (
+                <div
+                  className="list-group position-absolute w-100"
+                  style={{ zIndex: 2000, maxHeight: 220, overflowY: "auto" }}
+                  onMouseLeave={() => setIsDropdownOpen(false)}
+                >
+                  {patientsStatus === "loading" ? (
+                    <div className="list-group-item">Loading...</div>
+                  ) : filteredPatients.length > 0 ? (
+                    filteredPatients.map((p) => (
+                      <button
+                        type="button"
+                        key={p.patientVisitId || p.id || p.hospital_patient_id}
+                        className="list-group-item list-group-item-action"
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          setFilteredPatients([]);
+                          setForm((prev) => ({
+                            ...prev,
+                            deceasedName: p.name || prev.deceasedName,
+                            gender: p.gender || prev.gender,
+                            contactNumber: p.contactNumber || prev.contactNumber,
+                            address: p.address || prev.address,
+                            doctor: p.attendingDoctor || prev.doctor,
+                            hospitalPatientId: p.hospital_patient_id || p.id || "",
+                            patientVisitId: p.patientVisitId ?? prev.patientVisitId ?? null,
+                            birthDate: p.birthDate || prev.birthDate || "",
+                          }));
+                          setPatientSearch(`${p.name} (${p.hospital_patient_id || p.id})`);
+                        }}
+                      >
+                        {p.name} ({p.hospital_patient_id})
+                      </button>
+                    ))
+                  ) : (
+                    <div className="list-group-item">No match found</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
