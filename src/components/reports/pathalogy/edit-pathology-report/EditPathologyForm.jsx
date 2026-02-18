@@ -18,6 +18,9 @@ import {
   fetchDoctorNameIds,
   selectDoctorNameIds,
   selectDoctorNameIdsStatus,
+  fetchActivePatientVisits,
+  selectActivePatientVisits,
+  selectActivePatientVisitsStatus,
 } from "../../../../features/commanSlice";
 
 export default function EditPathologyForm() {
@@ -48,6 +51,7 @@ export default function EditPathologyForm() {
     contact: "",
     patientHospitalId: "",
     patientInternalId: "",
+    patientVisitId: "",
     doctor: "",
     doctorId: "",
     labTechnicianId: "",
@@ -63,10 +67,15 @@ export default function EditPathologyForm() {
   const navigate = useNavigate();
   const patients = useSelector(selectPatients) || [];
   const patientsStatus = useSelector(selectPatientsStatus);
+  const activePatientVisits = useSelector(selectActivePatientVisits) || [];
+  const activePatientVisitsStatus = useSelector(selectActivePatientVisitsStatus);
 
   const [patientQuery, setPatientQuery] = useState("");
   const [patientSuggestions, setPatientSuggestions] = useState([]);
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
+  const [patientNameQuery, setPatientNameQuery] = useState("");
+  const [patientNameSuggestions, setPatientNameSuggestions] = useState([]);
+  const [showPatientNameSuggestions, setShowPatientNameSuggestions] = useState(false);
   const [doctorQuery, setDoctorQuery] = useState("");
   const [doctorSuggestions, setDoctorSuggestions] = useState([]);
   const [showDoctorSuggestions, setShowDoctorSuggestions] = useState(false);
@@ -101,6 +110,11 @@ export default function EditPathologyForm() {
       const q = value.trim().toLowerCase();
       setPatientQuery(q);
       setShowPatientSuggestions(!!q);
+      // Also update patient name query for active patient visits
+      if (id === "patientName") {
+        setPatientNameQuery(q);
+        setShowPatientNameSuggestions(!!q);
+      }
       // clear any previously bound internal id when user types a new hospital id
       if (id === "patientHospitalId")
         setForm((prev) => ({ ...prev, patientInternalId: "" }));
@@ -126,6 +140,11 @@ export default function EditPathologyForm() {
     if (patientsStatus === "idle") dispatch(fetchPatients());
   }, [dispatch, patientsStatus]);
 
+  // Load active patient visits for suggestions
+  React.useEffect(() => {
+    if (activePatientVisitsStatus === "idle") dispatch(fetchActivePatientVisits());
+  }, [dispatch, activePatientVisitsStatus]);
+
   const doctorNameIds = useSelector(selectDoctorNameIds) || [];
   const doctorNameIdsStatus = useSelector(selectDoctorNameIdsStatus);
 
@@ -149,6 +168,7 @@ export default function EditPathologyForm() {
     dispatch(fetchPathologyById(reportId))
       .unwrap()
       .then((data) => {
+        console.log("EditPathologyForm - Raw API data:", data);
         const rec = data || {};
         // patient
         const patientName =
@@ -175,7 +195,21 @@ export default function EditPathologyForm() {
           rec.patient?.id ||
           rec.patient?._id ||
           rec.patientInternalId ||
+          rec.patient_id ||
+          rec.patientId ||
+          rec.id ||
           null;
+
+        // Extract patientVisitId from the record
+        const patientVisitIdVal =
+          rec.patientVisitId ||
+          rec.visitId ||
+          rec.visit_id ||
+          rec.patientVisitId ||
+          rec.visit?.id ||
+          null;
+
+        console.log("EditPathologyForm - patientVisitIdVal:", patientVisitIdVal, "patientHospitalId:", patientHospitalId, "patientName:", patientName);
 
         // age: check direct fields, nested patient, or derive from dob
         let ageVal =
@@ -231,6 +265,15 @@ export default function EditPathologyForm() {
           rec.contact?.email ||
           rec.patientContactEmail ||
           "";
+
+        console.log("EditPathologyForm - Extracted gender:", genderVal, "email:", emailVal);
+
+        // If gender or email are still missing, try to resolve from activePatientVisits
+        // by matching patientName or hospitalPatientId
+        if (!genderVal || !emailVal) {
+          // Use the loaded activePatientVisits
+          // Note: This will be handled in useEffect after data loads
+        }
 
         // If gender or email are still missing, try to resolve them from the
         // loaded patients list using the patient internal id returned by the
@@ -343,6 +386,7 @@ export default function EditPathologyForm() {
           email: emailVal || form.email,
           patientHospitalId: patientHospitalId || form.patientHospitalId,
           patientInternalId: patientInternalId || form.patientInternalId,
+          patientVisitId: patientVisitIdVal || form.patientVisitId,
           doctor: doctorName || form.doctor,
           doctorId: doctorId || form.doctorId,
           labTechnicianName: techName || form.labTechnicianName,
@@ -374,8 +418,47 @@ export default function EditPathologyForm() {
 
   // Update gender and email from patients if missing
   React.useEffect(() => {
-    if (!form.patientInternalId || !patients.length || (form.gender && form.email)) return;
-    const found = patients.find(p => String(p.id || p._id || p.patientId || p.patient_id) === String(form.patientInternalId));
+    console.log("Lookup effect - patients:", patients.length, "activePatientVisits:", activePatientVisits.length);
+    console.log("Lookup effect - form:", { patientInternalId: form.patientInternalId, patientVisitId: form.patientVisitId, patientHospitalId: form.patientHospitalId, patientName: form.patientName, gender: form.gender, email: form.email });
+    
+    // Only look up if patients are loaded
+    if (!patients.length && !activePatientVisits.length) return;
+    
+    // Build list of IDs/names to search for
+    const searchIds = [];
+    const searchNames = [];
+    if (form.patientInternalId) searchIds.push(String(form.patientInternalId));
+    if (form.patientVisitId) searchIds.push(String(form.patientVisitId));
+    if (form.patientHospitalId) searchIds.push(String(form.patientHospitalId));
+    if (form.patientName) searchNames.push(String(form.patientName).toLowerCase());
+    
+    if (searchIds.length === 0 && searchNames.length === 0) return;
+    
+    // Find patient from patients list by any of the IDs
+    let found = null;
+    if (patients.length) {
+      found = patients.find(p => {
+        const pId = String(p.id || p._id || p.patientId || p.patient_id || "");
+        const pHospitalId = String(p.patient_hospital_id || p.hospitalId || p.hospitalID || p.code || "");
+        const pName = (p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim()).toLowerCase();
+        return searchIds.some(searchId => pId === searchId || pHospitalId === searchId) ||
+               searchNames.some(searchName => pName.includes(searchName));
+      });
+    }
+    
+    // If not found in patients, try activePatientVisits
+    if (!found && activePatientVisits.length) {
+      found = activePatientVisits.find(p => {
+        const pId = String(p.id || p._id || p.patientId || p.patient_id || "");
+        const pVisitId = String(p.patientVisitId || p.visitId || "");
+        const pHospitalId = String(p.hospitalPatientId || p.patientHospitalId || "");
+        const pName = (p.patientName || "").toLowerCase();
+        return searchIds.some(searchId => pId === searchId || pVisitId === searchId || pHospitalId === searchId) ||
+               searchNames.some(searchName => pName.includes(searchName));
+      });
+      console.log("Lookup effect - found in activePatientVisits:", found);
+    }
+    
     if (found) {
       setForm(prev => ({
         ...prev,
@@ -383,7 +466,55 @@ export default function EditPathologyForm() {
         email: found.email || found.contactEmail || found.emailAddress || prev.email
       }));
     }
-  }, [patients, form.patientInternalId, form.gender, form.email]);
+  }, [patients, activePatientVisits, form.patientInternalId, form.patientVisitId, form.patientHospitalId]);
+
+  // Also try to load gender/email when patients or activePatientVisits finish loading
+  React.useEffect(() => {
+    // If we already have gender and email, no need to look up
+    if (form.gender && form.email) return;
+    
+    // Trigger the lookup by resetting the dependent values
+    if ((patients.length > 0 || activePatientVisits.length > 0) && 
+        (form.patientInternalId || form.patientVisitId || form.patientHospitalId)) {
+      // Force re-evaluation by using a small timeout to ensure state is ready
+      const timer = setTimeout(() => {
+        // Build search IDs
+        const searchIds = [];
+        if (form.patientInternalId) searchIds.push(String(form.patientInternalId));
+        if (form.patientVisitId) searchIds.push(String(form.patientVisitId));
+        if (form.patientHospitalId) searchIds.push(String(form.patientHospitalId));
+        
+        // Search patients
+        let found = null;
+        if (patients.length) {
+          found = patients.find(p => {
+            const pId = String(p.id || p._id || p.patientId || p.patient_id || "");
+            const pHospitalId = String(p.patient_hospital_id || p.hospitalId || p.hospitalID || p.code || "");
+            return searchIds.some(searchId => pId === searchId || pHospitalId === searchId);
+          });
+        }
+        
+        // Search activePatientVisits if not found
+        if (!found && activePatientVisits.length) {
+          found = activePatientVisits.find(p => {
+            const pId = String(p.id || p._id || p.patientId || p.patient_id || "");
+            const pVisitId = String(p.patientVisitId || p.visitId || "");
+            const pHospitalId = String(p.hospitalPatientId || p.patientHospitalId || "");
+            return searchIds.some(searchId => pId === searchId || pVisitId === searchId || pHospitalId === searchId);
+          });
+        }
+        
+        if (found) {
+          setForm(prev => ({
+            ...prev,
+            gender: found.gender ? (String(found.gender).toLowerCase().startsWith('m') ? 'Male' : String(found.gender).toLowerCase().startsWith('f') ? 'Female' : 'Other') : prev.gender,
+            email: found.email || found.contactEmail || found.emailAddress || prev.email
+          }));
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [patients, activePatientVisits]);
 
   // Update suggestions when patientQuery or patients change
   React.useEffect(() => {
@@ -404,6 +535,30 @@ export default function EditPathologyForm() {
       .slice(0, 10);
     setPatientSuggestions(matches);
   }, [patientQuery, patients]);
+
+  // Update patient name suggestions when patientNameQuery or activePatientVisits change
+  React.useEffect(() => {
+    if (!patientNameQuery) return setPatientNameSuggestions([]);
+    const q = patientNameQuery.toLowerCase();
+    const matches = (activePatientVisits || [])
+      .map((p) => ({
+        raw: p,
+        patientVisitId: p.patientVisitId || "",
+        patientName: p.patientName || "",
+        gender: p.gender || "",
+        age: p.age || "",
+        hospitalPatientId: p.hospitalPatientId || "",
+        doctorName: p.doctorName || "",
+        contactNumber: p.contactNumber || "",
+        email: p.email || "",
+      }))
+      .filter(
+        (p) =>
+          (p.patientName || "").toLowerCase().includes(q)
+      )
+      .slice(0, 10);
+    setPatientNameSuggestions(matches);
+  }, [patientNameQuery, activePatientVisits]);
 
   // Update doctor suggestions when doctorQuery or fetched doctorNameIds change
   React.useEffect(() => {
@@ -481,55 +636,86 @@ export default function EditPathologyForm() {
 
   const handleSelectPatient = (p) => {
     const raw = p.raw || p;
-    const hospId =
-      raw.patient_hospital_id ||
-      raw.hospitalId ||
-      raw.hospitalID ||
-      raw.code ||
-      "";
-    const name =
-      raw.name || `${raw.firstName || ""} ${raw.lastName || ""}`.trim();
-    // determine age: prefer explicit age, fallback to ageYears, then derive from dob if present
-    let ageVal = raw.age || raw.ageYears;
-    if (!ageVal && raw.dob) {
-      const bd = new Date(raw.dob);
-      if (!isNaN(bd.getTime())) {
-        const diff = Date.now() - bd.getTime();
-        ageVal = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-      }
-    }
-
-    // normalize gender to match select options (Male/Female/Other)
-    let genderVal = (raw.gender && String(raw.gender)) || "";
-    if (genderVal) {
-      const g = genderVal.toLowerCase();
+    
+    // Check if this is from activePatientVisits (has patientVisitId) or patients list
+    const isActiveVisit = raw.patientVisitId || raw.patientName;
+    
+    let hospId, name, ageVal, genderVal, contactVal, emailVal, patientVisitId;
+    
+    if (isActiveVisit) {
+      // Handle activePatientVisits format
+      patientVisitId = raw.patientVisitId || "";
+      hospId = raw.hospitalPatientId || raw.patientHospitalId || "";
+      name = raw.patientName || "";
+      ageVal = raw.age;
+      
+      // normalize gender
+      let g = (raw.gender || "").toLowerCase();
       if (g.startsWith("m")) genderVal = "Male";
       else if (g.startsWith("f")) genderVal = "Female";
-      else genderVal = "Other";
-    }
+      else genderVal = raw.gender || "";
+      
+      contactVal = raw.contactNumber || raw.contact || "";
+      emailVal = raw.email || "";
+    } else {
+      // Handle patients list format
+      hospId =
+        raw.patient_hospital_id ||
+        raw.hospitalId ||
+        raw.hospitalID ||
+        raw.code ||
+        "";
+      name =
+        raw.name || `${raw.firstName || ""} ${raw.lastName || ""}`.trim();
+      // determine age: prefer explicit age, fallback to ageYears, then derive from dob if present
+      ageVal = raw.age || raw.ageYears;
+      if (!ageVal && raw.dob) {
+        const bd = new Date(raw.dob);
+        if (!isNaN(bd.getTime())) {
+          const diff = Date.now() - bd.getTime();
+          ageVal = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+        }
+      }
 
-    // contact may be present in different fields (contactInfo, contactNumber, mobile, phone)
-    const contactVal =
-      raw.contactInfo ||
-      raw.contactNumber ||
-      raw.mobile ||
-      raw.phone ||
-      raw.contact ||
-      "";
+      // normalize gender to match select options (Male/Female/Other)
+      let g = (raw.gender && String(raw.gender)) || "";
+      if (g) {
+        g = g.toLowerCase();
+        if (g.startsWith("m")) genderVal = "Male";
+        else if (g.startsWith("f")) genderVal = "Female";
+        else genderVal = "Other";
+      } else {
+        genderVal = "";
+      }
+
+      // contact may be present in different fields
+      contactVal =
+        raw.contactInfo ||
+        raw.contactNumber ||
+        raw.mobile ||
+        raw.phone ||
+        raw.contact ||
+        "";
+      emailVal = raw.email || "";
+    }
 
     setForm((prev) => ({
       ...prev,
       patientHospitalId: hospId || String(raw.id || ""),
-      patientInternalId: raw.id || "",
+      patientInternalId: raw.id || raw.patientId || "",
+      patientVisitId: patientVisitId || prev.patientVisitId,
       patientName: name,
       age: ageVal || prev.age,
       gender: genderVal || prev.gender,
       contact: contactVal || prev.contact,
-      email: raw.email || prev.email,
+      email: emailVal || prev.email,
     }));
     setShowPatientSuggestions(false);
     setPatientSuggestions([]);
     setPatientQuery("");
+    setShowPatientNameSuggestions(false);
+    setPatientNameSuggestions([]);
+    setPatientNameQuery("");
   };
 
   const handleSelectDoctor = (d) => {
@@ -579,12 +765,18 @@ export default function EditPathologyForm() {
     const required = {
       patientName: /^[A-Za-z\s.]{3,60}$/,
       age: /^[0-9]{1,3}$/,
-      gender: /.+/,
       contact: /^[0-9]{10}$/,
       // Accept alphanumeric, hyphen, underscore, slash and spaces; 1-50 chars
       patientHospitalId: /^[A-Za-z0-9\-_\/ ]{1,50}$/,
-      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
     };
+    // Only validate gender if it has a value
+    if (form.gender && form.gender.trim()) {
+      required.gender = /^.+$/;
+    }
+    // Only validate email if it has a value (must be valid format if provided)
+    if (form.email && form.email.trim()) {
+      required.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    }
     Object.entries(required).forEach(([k, regex]) => {
       const raw = form[k];
       const sval = raw == null ? "" : String(raw);
@@ -639,15 +831,20 @@ export default function EditPathologyForm() {
       return `${String(hour).padStart(2, "0")}:${mm} ${suffix}`;
     })();
 
-    // Determine numeric patientId to send. Prefer selected internal id, else try to lookup by hospital id.
-    let patientIdToSend = null;
+    // Determine numeric patientVisitId to send. Prefer selected patientVisitId, else try to lookup by hospital id.
+    let patientVisitIdToSend = null;
     if (
+      form.patientVisitId &&
+      !Number.isNaN(Number(form.patientVisitId))
+    ) {
+      patientVisitIdToSend = Number(form.patientVisitId);
+    } else if (
       form.patientInternalId &&
       !Number.isNaN(Number(form.patientInternalId))
     ) {
-      patientIdToSend = Number(form.patientInternalId);
+      patientVisitIdToSend = Number(form.patientInternalId);
     } else if (!Number.isNaN(Number(form.patientHospitalId))) {
-      patientIdToSend = Number(form.patientHospitalId);
+      patientVisitIdToSend = Number(form.patientHospitalId);
     } else {
       // try to find patient by hospital id from loaded patients
       const found = (patients || []).find((pt) => {
@@ -663,15 +860,15 @@ export default function EditPathologyForm() {
         );
       });
       if (found && (found.id || found._id || found.patientId)) {
-        patientIdToSend = Number(found.id || found._id || found.patientId);
+        patientVisitIdToSend = Number(found.id || found._id || found.patientId);
       }
     }
 
-    if (patientIdToSend == null || Number.isNaN(patientIdToSend)) {
+    if (patientVisitIdToSend == null || Number.isNaN(patientVisitIdToSend)) {
       Swal.fire({
         icon: "error",
         title: "Select Patient",
-        text: "Please select the patient from suggestions so a valid internal patient id is available.",
+        text: "Please select the patient from suggestions so a valid patient visit id is available.",
       });
       return;
     }
@@ -702,7 +899,7 @@ export default function EditPathologyForm() {
 
     // Backend expects a lean payload (no extra name fields)
     const payload = {
-      patientId: patientIdToSend,
+      patientVisitId: patientVisitIdToSend,
       doctorId:
         form.doctorId && !Number.isNaN(Number(form.doctorId))
           ? Number(form.doctorId)
@@ -721,7 +918,9 @@ export default function EditPathologyForm() {
       })),
     };
 
-    console.debug("Submitting pathology payload:", payload);
+    console.log("Edit Pathology Payload:", payload);
+
+    console.log("Edit Pathology Payload:", payload);
 
     // Use updatePathology thunk to update an existing report
     dispatch(updatePathology({ reportId: reportId, payload }))
@@ -742,6 +941,7 @@ export default function EditPathologyForm() {
           contact: "",
           patientHospitalId: "",
           patientInternalId: "",
+          patientVisitId: "",
           doctor: "",
           doctorId: "",
           labTechnicianId: "",
@@ -810,7 +1010,25 @@ export default function EditPathologyForm() {
                     value={form.patientName}
                     onChange={handleFormChange}
                     placeholder="e.g. Rahul Sharma"
+                    autoComplete="off"
                   />
+                  {showPatientNameSuggestions && patientNameSuggestions.length > 0 && (
+                    <div
+                      className="list-group position-absolute"
+                      style={{ zIndex: 999, width: '100%' }}
+                    >
+                      {patientNameSuggestions.map((ps, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="list-group-item list-group-item-action"
+                          onClick={() => handleSelectPatient(ps)}
+                        >
+                          <strong>{ps.patientName}</strong> — {ps.raw?.hospitalPatientId || ps.hospitalPatientId || "-"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="col-md-2">
                   <label>Age</label>

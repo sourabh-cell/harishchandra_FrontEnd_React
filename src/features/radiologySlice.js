@@ -41,6 +41,36 @@ export const fetchRadiologies = createAsyncThunk(
   }
 );
 
+// Fetch single radiology by id (GET /radiology/{reportId})
+export const fetchRadiologyById = createAsyncThunk(
+  "radiology/fetchRadiologyById",
+  async (reportId, { rejectWithValue }) => {
+    try {
+      const token = getToken();
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      console.log("API Call - Fetching radiology for ID:", reportId);
+      const res = await axios.get(`${API_BASE_URL}/radiology/${reportId}`, {
+        headers,
+      });
+      const data = res.data?.data || res.data;
+      console.log("API Response - Radiology data:", data);
+      return data;
+    } catch (err) {
+      const payloadErr = err.response
+        ? {
+            message:
+              err.response.data?.message || err.response.data || err.message,
+            status: err.response.status,
+            url: err.config?.url,
+          }
+        : { message: err.message || "Network error", code: err.code };
+      return rejectWithValue(payloadErr);
+    }
+  }
+);
+
 // Create radiology report (POST /radiology/create)
 export const createRadiology = createAsyncThunk(
   "radiology/createRadiology",
@@ -119,6 +149,7 @@ export const updateRadiologyStatus = createAsyncThunk(
       const headers = {};
       if (token) headers.Authorization = `Bearer ${token}`;
 
+      console.log("Updating radiology status - reportId:", reportId, "status:", status);
       const res = await axios.put(
         `${API_BASE_URL}/radiology/status/${reportId}/${status}`,
         {},
@@ -126,6 +157,7 @@ export const updateRadiologyStatus = createAsyncThunk(
       );
       return { reportId, status, data: res.data };
     } catch (err) {
+      console.error("Error updating radiology status:", err);
       const payloadErr = err.response
         ? {
             message:
@@ -180,6 +212,9 @@ const initialState = {
   radiologies: [],
   radiologiesStatus: "idle",
   radiologiesError: null,
+  fetchRadiologyStatus: "idle",
+  fetchRadiologyError: null,
+  currentRadiology: null,
   statusUpdateStatus: "idle",
   statusUpdateError: null,
   deleteStatus: "idle",
@@ -313,6 +348,20 @@ const radiologySlice = createSlice({
         state.radiologiesStatus = "failed";
         state.radiologiesError = action.payload || action.error.message;
       });
+    // fetch single radiology by id
+    builder
+      .addCase(fetchRadiologyById.pending, (state) => {
+        state.fetchRadiologyStatus = "loading";
+        state.fetchRadiologyError = null;
+      })
+      .addCase(fetchRadiologyById.fulfilled, (state, action) => {
+        state.fetchRadiologyStatus = "succeeded";
+        state.currentRadiology = action.payload || null;
+      })
+      .addCase(fetchRadiologyById.rejected, (state, action) => {
+        state.fetchRadiologyStatus = "failed";
+        state.fetchRadiologyError = action.payload || action.error.message;
+      });
   },
 });
 
@@ -342,6 +391,13 @@ export const selectRadiologiesStatus = (state) =>
   state.radiology?.radiologiesStatus || "idle";
 export const selectRadiologiesError = (state) =>
   state.radiology?.radiologiesError || null;
+// selectors for single radiology
+export const selectCurrentRadiology = (state) =>
+  state.radiology?.currentRadiology || null;
+export const selectFetchRadiologyStatus = (state) =>
+  state.radiology?.fetchRadiologyStatus || "idle";
+export const selectFetchRadiologyError = (state) =>
+  state.radiology?.fetchRadiologyError || null;
 
 // selectors for update
 export const selectUpdateRadiologyStatus = (state) =>

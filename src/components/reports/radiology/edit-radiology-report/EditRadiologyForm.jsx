@@ -10,6 +10,9 @@ import {
   selectRadiologies,
   selectRadiologiesStatus,
   updateRadiology,
+  fetchRadiologyById,
+  selectCurrentRadiology,
+  selectFetchRadiologyStatus,
 } from "../../../../features/radiologySlice";
 import {
   fetchPatients,
@@ -18,6 +21,9 @@ import {
   fetchDoctorNameIds,
   selectDoctorNameIds,
   selectDoctorNameIdsStatus,
+  fetchActivePatientVisits,
+  selectActivePatientVisits,
+  selectActivePatientVisitsStatus,
 } from "../../../../features/commanSlice";
 
 export default function EditRadiologyForm() {
@@ -36,6 +42,7 @@ export default function EditRadiologyForm() {
     reportedBy: "",
     // new fields for payload
     patientId: "",
+    patientVisitId: "",
     patientHospitalId: "",
     doctorId: "",
     doctorName: "",
@@ -52,9 +59,15 @@ export default function EditRadiologyForm() {
   const [valid, setValid] = useState({});
   const patients = useSelector(selectPatients) || [];
   const patientsStatus = useSelector(selectPatientsStatus);
+  const activePatientVisits = useSelector(selectActivePatientVisits) || [];
+  const activePatientVisitsStatus = useSelector(selectActivePatientVisitsStatus);
   const [patientQuery, setPatientQuery] = useState("");
   const [patientSuggestions, setPatientSuggestions] = useState([]);
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
+  // Patient name autocomplete for active patient visits
+  const [patientNameQuery, setPatientNameQuery] = useState("");
+  const [patientNameSuggestions, setPatientNameSuggestions] = useState([]);
+  const [showPatientNameSuggestions, setShowPatientNameSuggestions] = useState(false);
   const [doctorQuery, setDoctorQuery] = useState("");
   const [doctorSuggestions, setDoctorSuggestions] = useState([]);
   const [showDoctorSuggestions, setShowDoctorSuggestions] = useState(false);
@@ -120,6 +133,42 @@ export default function EditRadiologyForm() {
     const q = v.trim().toLowerCase();
     setPatientQuery(q);
     setShowPatientSuggestions(!!q);
+    // Also trigger patient name autocomplete from active patient visits
+    setPatientNameQuery(v);
+    setShowPatientNameSuggestions(!!v);
+  };
+
+  const handleSelectPatientName = (p) => {
+    const raw = p.raw || p;
+    
+    // Extract patient data from active patient visit
+    const patientVisitId = raw.patientVisitId || "";
+    const hospId = raw.hospitalPatientId || raw.patientHospitalId || "";
+    const name = raw.patientName || "";
+    const ageVal = raw.age || "";
+    
+    // Normalize gender
+    let genderVal = (raw.gender || "").toLowerCase();
+    if (genderVal.startsWith("m")) genderVal = "Male";
+    else if (genderVal.startsWith("f")) genderVal = "Female";
+    else genderVal = raw.gender || "";
+    
+    const contactVal = raw.contactNumber || raw.contact || "";
+    const doctorNameVal = raw.doctorName || "";
+
+    setForm((prev) => ({
+      ...prev,
+      patientName: name,
+      age: ageVal || prev.age,
+      gender: genderVal || prev.gender,
+      contact: contactVal || prev.contact,
+      doctorName: doctorNameVal || prev.doctorName,
+      patientVisitId: patientVisitId || prev.patientVisitId,
+      patientHospitalId: hospId || prev.patientHospitalId,
+    }));
+    setShowPatientNameSuggestions(false);
+    setPatientNameSuggestions([]);
+    setPatientNameQuery("");
   };
 
   const validateAll = () => {
@@ -164,6 +213,8 @@ export default function EditRadiologyForm() {
 
   const allRadiologies = useSelector(selectRadiologies) || [];
   const allRadiologiesStatus = useSelector(selectRadiologiesStatus);
+  const currentRadiology = useSelector(selectCurrentRadiology);
+  const fetchRadiologyStatus = useSelector(selectFetchRadiologyStatus);
 
   // Load patients for suggestions
   useEffect(() => {
@@ -173,25 +224,36 @@ export default function EditRadiologyForm() {
     dispatch(fetchDoctorNameIds());
     // fetch radiology technicians for searchable technician field
     dispatch(fetchRadiologyTechnicians());
-    // ensure radiologies list loaded so we can prefill edit form
-    if (allRadiologiesStatus === "idle") dispatch(fetchRadiologies());
-  }, [dispatch, patientsStatus]);
+    // fetch active patient visits for patient name autocomplete
+    if (activePatientVisitsStatus === "idle") dispatch(fetchActivePatientVisits());
+  }, [dispatch, patientsStatus, activePatientVisitsStatus]);
 
-  // When radiologies load or routeId changes, prefill the form for editing
+  // Fetch radiology by ID when routeId changes
   useEffect(() => {
     if (!routeId) return;
-    if (allRadiologiesStatus !== "succeeded" || patientsStatus !== "succeeded") return;
-    const found = (allRadiologies || []).find(
-      (r) => String(r.id || r._id) === String(routeId)
-    );
-    if (!found) return;
+    console.log("Fetching radiology for ID:", routeId);
+    if (fetchRadiologyStatus === "idle") {
+      dispatch(fetchRadiologyById(routeId));
+    }
+  }, [dispatch, routeId, fetchRadiologyStatus]);
+
+  // When currentRadiology loads, prefill the form for editing
+  useEffect(() => {
+    if (!routeId) return;
+    if (fetchRadiologyStatus !== "succeeded" || !currentRadiology) return;
+    
+    console.log("currentRadiology data:", JSON.stringify(currentRadiology, null, 2));
+    const found = currentRadiology;
 
     // Map backend fields to local form state
     console.debug("EditRadiologyForm prefill record:", found);
     const hospId =
       // top-level common keys
+      found.hospitalPatientId ||
       found.patient_hospital_id ||
       found.patientHospitalId ||
+      found.hospital_id ||
+      found.hospitalID ||
       found.patient?.patient_hospital_id ||
       found.patient?.patientHospitalId ||
       // some APIs put fields under an attributes or data object
@@ -199,9 +261,9 @@ export default function EditRadiologyForm() {
       (found.patient && (found.patient.attributes || {}).patientHospitalId) ||
       // other possible locations
       found.patient?.hospitalId ||
-      found.hospitalId ||
-      found.hospitalID ||
+      found.patient?.hospital_id ||
       found.patient?.code ||
+      found.patientCode ||
       "";
     console.debug("Resolved hospId:", hospId);
     const patientNameVal =
@@ -215,8 +277,11 @@ export default function EditRadiologyForm() {
     const ageVal = found.patientAge || found.age || found.patient?.age || "";
     let genderVal =
       found.patientGender ||
+      found.patientSex ||
       found.gender ||
       found.patient_gender ||
+      found.patient?.patientGender ||
+      found.patient?.patientSex ||
       found.patient?.gender ||
       found.patient?.sex ||
       found.sex ||
@@ -321,13 +386,13 @@ export default function EditRadiologyForm() {
         setForm((prev) => ({ ...prev, scanType: prev.scanType || scanType }));
       }
     }
-  }, [allRadiologiesStatus, allRadiologies, routeId, patientsStatus, patients]);
+  }, [fetchRadiologyStatus, currentRadiology, routeId]);
 
   // After the record and tests are prefetched into local state the first time,
   // capture a deep snapshot so we can later detect if the user actually changed anything.
   useEffect(() => {
     if (!routeId) return;
-    if (allRadiologiesStatus !== "succeeded") return;
+    if (fetchRadiologyStatus !== "succeeded") return;
     if (!form || !form.patientName) return;
     if (initialForm !== null || initialTests !== null) return;
 
@@ -335,7 +400,7 @@ export default function EditRadiologyForm() {
     setInitialTests(JSON.parse(JSON.stringify(tests)));
   }, [
     routeId,
-    allRadiologiesStatus,
+    fetchRadiologyStatus,
     form,
     tests,
     initialForm,
@@ -375,6 +440,26 @@ export default function EditRadiologyForm() {
       .slice(0, 10);
     setPatientSuggestions(matches);
   }, [patientQuery, patients]);
+
+  // Update patient name suggestions from active patient visits when query changes
+  useEffect(() => {
+    if (!patientNameQuery) return setPatientNameSuggestions([]);
+    const q = patientNameQuery.toLowerCase();
+    const matches = (activePatientVisits || [])
+      .map((p) => ({
+        raw: p,
+        id: String(p.patientVisitId || p.id || p._id || ""),
+        name: p.patientName || `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+        display: `${p.patientName || ""} (${p.hospitalPatientId || p.patientHospitalId || "-"})`,
+      }))
+      .filter(
+        (p) =>
+          String(p.id || "").toLowerCase().includes(q) ||
+          String(p.name || "").toLowerCase().includes(q)
+      )
+      .slice(0, 10);
+    setPatientNameSuggestions(matches);
+  }, [patientNameQuery, activePatientVisits]);
 
   // Update doctor suggestions when query or doctor list changes
   const doctorNameIds = useSelector(selectDoctorNameIds) || [];
@@ -549,6 +634,9 @@ export default function EditRadiologyForm() {
     setShowPatientSuggestions(false);
     setPatientSuggestions([]);
     setPatientQuery("");
+    setShowPatientNameSuggestions(false);
+    setPatientNameSuggestions([]);
+    setPatientNameQuery("");
   };
 
   const saveData = async () => {
@@ -634,6 +722,7 @@ export default function EditRadiologyForm() {
 
     const reportPayload = {
       patientId: patientId,
+      patientVisitId: form.patientVisitId || patientId || null,
       doctorId: doctorId,
       radiologyPerformedById: radiologyPerformedById,
       reportDate: form.reportDate || "",
@@ -655,6 +744,8 @@ export default function EditRadiologyForm() {
       radiologyTechnicianName: form.radiologyPerformedByName || "",
       totalCost: totalAmount,
     };
+
+    console.log("Edit Radiology Payload:", reportPayload);
 
     // Build FormData so we can send files + report JSON as multipart/form-data
     const formData = new FormData();
@@ -766,6 +857,23 @@ export default function EditRadiologyForm() {
                         onClick={() => handleSelectPatient(ps)}
                       >
                         <strong>{ps.name}</strong> — {ps.raw?.patient_hospital_id || ps.id || "-"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showPatientNameSuggestions && patientNameSuggestions.length > 0 && (
+                  <div
+                    className="list-group position-absolute"
+                    style={{ zIndex: 999, width: "100%" }}
+                  >
+                    {patientNameSuggestions.map((ps, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        className="list-group-item list-group-item-action"
+                        onClick={() => handleSelectPatientName(ps)}
+                      >
+                        {ps.display || ps.name}
                       </button>
                     ))}
                   </div>
@@ -1117,6 +1225,9 @@ export default function EditRadiologyForm() {
           </div>
 
           <div className="d-flex justify-content-center gap-2 mb-3 no-print">
+            <button className="btn btn-secondary" onClick={() => navigate(-1)}>
+              Cancel
+            </button>
             <button className="btn btn-theme" onClick={saveData}>
               Update Report
             </button>

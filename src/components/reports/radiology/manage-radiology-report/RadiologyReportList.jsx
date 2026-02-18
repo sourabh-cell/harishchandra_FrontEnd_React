@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 import { getToken } from "../../../../utils/authToken";
+import Swal from "sweetalert2";
 import {
   fetchRadiologies,
   selectRadiologies,
@@ -13,12 +15,12 @@ import {
   selectDeleteRadiologyStatus,
   selectDeleteRadiologyError,
 } from "../../../../features/radiologySlice";
-import { NavLink } from "react-router-dom";
 
 const LS_KEY = "hms_radiology_reports";
 
 const RadiologyReportList = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const radiologies = useSelector(selectRadiologies);
   const radiologiesStatus = useSelector(selectRadiologiesStatus);
   const radiologiesError = useSelector(selectRadiologiesError);
@@ -162,6 +164,22 @@ const RadiologyReportList = () => {
   };
 
   const handleStatusChange = (reportId, newStatus) => {
+    // Find the current report to get its current status
+    const currentReport = reports.find(r => r.id === reportId);
+    const currentStatus = (currentReport?.status || currentReport?.reportStatus || "").toUpperCase();
+    const newStatusUpper = newStatus.toUpperCase();
+    
+    // If changing from DELIVERED to COMPLETED, show warning
+    if (currentStatus === "DELIVERED" && newStatusUpper === "COMPLETED") {
+      Swal.fire({
+        icon: "warning",
+        title: "Status Change Warning",
+        text: "Once the report is marked as DELIVERED, it cannot be changed to COMPLETED.",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+    
     dispatch(updateRadiologyStatus({ reportId, status: newStatus }));
   };
 
@@ -191,6 +209,21 @@ const RadiologyReportList = () => {
   const openEditModal = (report) => {
     setEditReportData({ ...report, status: report?.status || "Pending" });
     setShowEdit(true);
+  };
+
+  const handleEditClick = (report) => {
+    const reportStatus = (report.status || report.reportStatus || "").toUpperCase();
+    if (reportStatus === "DELIVERED") {
+      Swal.fire({
+        icon: "warning",
+        title: "Cannot Edit",
+        text: "Once the report is marked as DELIVERED, it cannot be updated.",
+        confirmButtonText: "OK",
+      });
+      return;
+    }
+    // If not DELIVERED, navigate to edit page
+    navigate(`/dashboard/edit-radiology-report/${report.id}`);
   };
 
   const openViewModal = (report) => {
@@ -715,14 +748,13 @@ const RadiologyReportList = () => {
                             >
                               <i className="fa-regular fa-eye"></i>
                             </button>
-                            <NavLink
-                              to={`/dashboard/edit-radiology-report/${r.id}`}
+                            <button
                               className="btn1 bg-warning me-1 btn-sm"
-                              onClick={() => openEditModal(r)}
+                              onClick={() => handleEditClick(r)}
                               data-tooltip="Edit"
                             >
                               <i className="fa-solid fa-pen"></i>
-                            </NavLink>
+                            </button>
                             <button
                               className="btn1 bg-danger btn-sm"
                               data-tooltip="Delete"

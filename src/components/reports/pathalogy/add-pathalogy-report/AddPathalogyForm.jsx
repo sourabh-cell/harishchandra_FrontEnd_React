@@ -21,6 +21,9 @@ import {
   fetchDoctorNameIds,
   selectDoctorNameIds,
   selectDoctorNameIdsStatus,
+  fetchActivePatientVisits,
+  selectActivePatientVisits,
+  selectActivePatientVisitsStatus,
 } from "../../../../features/commanSlice";
 
 export default function AddPathalogyForm() {
@@ -52,6 +55,7 @@ export default function AddPathalogyForm() {
     gender: "",
     contact: "",
     patientHospitalId: "",
+    patientVisitId: "",
     patientInternalId: "",
     doctor: "",
     doctorId: "",
@@ -66,6 +70,8 @@ export default function AddPathalogyForm() {
   const navigate = useNavigate();
   const patients = useSelector(selectPatients) || [];
   const patientsStatus = useSelector(selectPatientsStatus);
+  const activePatientVisits = useSelector(selectActivePatientVisits) || [];
+  const activePatientVisitsStatus = useSelector(selectActivePatientVisitsStatus);
 
   const [patientNameQuery, setPatientNameQuery] = useState("");
   const [patientNameSuggestions, setPatientNameSuggestions] = useState([]);
@@ -130,6 +136,11 @@ export default function AddPathalogyForm() {
     if (patientsStatus === "idle") dispatch(fetchPatients());
   }, [dispatch, patientsStatus]);
 
+  // Load active patient visits for suggestions
+  React.useEffect(() => {
+    if (activePatientVisitsStatus === "idle") dispatch(fetchActivePatientVisits());
+  }, [dispatch, activePatientVisitsStatus]);
+
   const doctorNameIds = useSelector(selectDoctorNameIds) || [];
   const doctorNameIdsStatus = useSelector(selectDoctorNameIdsStatus);
 
@@ -147,24 +158,29 @@ export default function AddPathalogyForm() {
     if (labTechniciansStatus === "idle") dispatch(fetchLabTechnicians());
   }, [dispatch, labTechniciansStatus]);
 
-  // Update patient name suggestions when patientNameQuery or patients change
+  // Update patient name suggestions when patientNameQuery or activePatientVisits change
   React.useEffect(() => {
     if (!patientNameQuery) return setPatientNameSuggestions([]);
     const q = patientNameQuery.toLowerCase();
-    const matches = (patients || [])
+    const matches = (activePatientVisits || [])
       .map((p) => ({
         raw: p,
-        id:
-          p.patient_hospital_id || p.hospitalId || p.hospitalID || p.code || "",
-        name: p.name || `${p.firstName || ""} ${p.lastName || ""}`.trim(),
+        patientVisitId: p.patientVisitId || "",
+        patientName: p.patientName || "",
+        gender: p.gender || "",
+        age: p.age || "",
+        hospitalPatientId: p.hospitalPatientId || "",
+        doctorName: p.doctorName || "",
+        contactNumber: p.contactNumber || "",
+        email: p.email || "",
       }))
       .filter(
         (p) =>
-          (p.name || "").toLowerCase().includes(q)
+          (p.patientName || "").toLowerCase().includes(q)
       )
       .slice(0, 10);
     setPatientNameSuggestions(matches);
-  }, [patientNameQuery, patients]);
+  }, [patientNameQuery, activePatientVisits]);
 
   // Update patient ID suggestions when patientIdQuery or patients change
   React.useEffect(() => {
@@ -270,58 +286,30 @@ export default function AddPathalogyForm() {
 
   const handleSelectPatient = (p) => {
     const raw = p.raw || p;
-    const hospId =
-      raw.patient_hospital_id ||
-      raw.hospitalId ||
-      raw.hospitalID ||
-      raw.code ||
-      "";
-    const name =
-      raw.name || `${raw.firstName || ""} ${raw.lastName || ""}`.trim();
-    // determine age: prefer explicit age, fallback to ageYears, then derive from dob if present
-    let ageVal = raw.age || raw.ageYears;
-    if (!ageVal && raw.dob) {
-      const bd = new Date(raw.dob);
-      if (!isNaN(bd.getTime())) {
-        const diff = Date.now() - bd.getTime();
-        ageVal = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-      }
-    }
-
-    // normalize gender to match select options (Male/Female/Other)
-    let genderVal = (raw.gender && String(raw.gender)) || "";
-    if (genderVal) {
-      const g = genderVal.toLowerCase();
-      if (g.startsWith("m")) genderVal = "Male";
-      else if (g.startsWith("f")) genderVal = "Female";
-      else genderVal = "Other";
-    }
-
-    // contact may be present in different fields (contactInfo, contactNumber, mobile, phone)
-    const contactVal =
-      raw.contactInfo ||
-      raw.contactNumber ||
-      raw.mobile ||
-      raw.phone ||
-      raw.contact ||
-      "";
+    // Handle active patient visits data structure
+    const patientVisitId = raw.patientVisitId || "";
+    const patientName = raw.patientName || "";
+    const gender = raw.gender || "";
+    const age = raw.age || "";
+    const hospitalPatientId = raw.hospitalPatientId || "";
+    const doctorName = raw.doctorName || "";
+    const contactNumber = raw.contactNumber || "";
+    const email = raw.email || "";
 
     setForm((prev) => ({
       ...prev,
-      patientHospitalId: hospId || String(raw.id || ""),
-      patientInternalId: raw.id || "",
-      patientName: name,
-      age: ageVal || prev.age,
-      gender: genderVal || prev.gender,
-      contact: contactVal || prev.contact,
-      email: raw.email || prev.email,
+      patientVisitId: patientVisitId,
+      patientName: patientName,
+      gender: gender,
+      age: age,
+      patientHospitalId: hospitalPatientId,
+      doctor: doctorName,
+      contact: contactNumber,
+      email: email,
     }));
     setShowPatientNameSuggestions(false);
     setPatientNameSuggestions([]);
     setPatientNameQuery("");
-    setShowPatientIdSuggestions(false);
-    setPatientIdSuggestions([]);
-    setPatientIdQuery("");
   };
 
   const handleSelectDoctor = (d) => {
@@ -404,39 +392,20 @@ export default function AddPathalogyForm() {
       return `${String(hour).padStart(2, "0")}:${mm} ${suffix}`;
     })();
 
-    // Determine numeric patientId to send. Prefer selected internal id, else try to lookup by hospital id.
-    let patientIdToSend = null;
+    // Determine numeric patientVisitId to send
+    let patientVisitIdToSend = null;
     if (
-      form.patientInternalId &&
-      !Number.isNaN(Number(form.patientInternalId))
+      form.patientVisitId &&
+      !Number.isNaN(Number(form.patientVisitId))
     ) {
-      patientIdToSend = Number(form.patientInternalId);
-    } else if (!Number.isNaN(Number(form.patientHospitalId))) {
-      patientIdToSend = Number(form.patientHospitalId);
-    } else {
-      // try to find patient by hospital id from loaded patients
-      const found = (patients || []).find((pt) => {
-        const hid =
-          pt.patient_hospital_id ||
-          pt.hospitalId ||
-          pt.hospitalID ||
-          pt.code ||
-          "";
-        return (
-          String(hid).toLowerCase() ===
-          String(form.patientHospitalId || "").toLowerCase()
-        );
-      });
-      if (found && (found.id || found._id || found.patientId)) {
-        patientIdToSend = Number(found.id || found._id || found.patientId);
-      }
+      patientVisitIdToSend = Number(form.patientVisitId);
     }
 
-    if (patientIdToSend == null || Number.isNaN(patientIdToSend)) {
+    if (patientVisitIdToSend == null || Number.isNaN(patientVisitIdToSend)) {
       Swal.fire({
         icon: "error",
         title: "Select Patient",
-        text: "Please select the patient from suggestions so a valid internal patient id is available.",
+        text: "Please select the patient from suggestions so a valid patient visit id is available.",
       });
       return;
     }
@@ -466,7 +435,7 @@ export default function AddPathalogyForm() {
     }
 
     const payload = {
-      patientId: patientIdToSend,
+      patientVisitId: patientVisitIdToSend,
       doctorId:
         form.doctorId && !Number.isNaN(Number(form.doctorId))
           ? Number(form.doctorId)
@@ -583,7 +552,7 @@ export default function AddPathalogyForm() {
                           className="list-group-item list-group-item-action"
                           onClick={() => handleSelectPatient(ps)}
                         >
-                          <strong>{ps.name}</strong> — {ps.raw?.patient_hospital_id || ps.id || "-"}
+                          <strong>{ps.patientName}</strong> — {ps.raw?.hospitalPatientId || ps.hospitalPatientId || "-"}
                         </button>
                       ))}
                     </div>
@@ -669,7 +638,7 @@ export default function AddPathalogyForm() {
                     value={form.doctor}
                     onChange={handleFormChange}
                     onFocus={handleDoctorFocus}
-                    placeholder="Dr. Mehta"
+                    placeholder="Referring Doctor"
                   />
                   {showDoctorSuggestions && (
                     <div

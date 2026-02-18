@@ -15,6 +15,9 @@ import {
   fetchDoctorNameIds,
   selectDoctorNameIds,
   selectDoctorNameIdsStatus,
+  fetchActivePatientVisits,
+  selectActivePatientVisits,
+  selectActivePatientVisitsStatus,
 } from "../../../../features/commanSlice";
 
 export default function RadiologyForm() {
@@ -27,11 +30,12 @@ export default function RadiologyForm() {
     age: "",
     gender: "",
     contact: "",
+    email: "",
     scanType: "",
     reportDate: today,
     imagingTime: "",
     // new fields for payload
-    patientId: "",
+    patientVisitId: "",
     patientHospitalId: "",
     doctorId: "",
     doctorName: "",
@@ -43,9 +47,15 @@ export default function RadiologyForm() {
   const [valid, setValid] = useState({});
   const patients = useSelector(selectPatients) || [];
   const patientsStatus = useSelector(selectPatientsStatus);
+  const activePatientVisits = useSelector(selectActivePatientVisits) || [];
+  const activePatientVisitsStatus = useSelector(selectActivePatientVisitsStatus);
+  
   const [patientQuery, setPatientQuery] = useState("");
   const [patientSuggestions, setPatientSuggestions] = useState([]);
   const [showPatientSuggestions, setShowPatientSuggestions] = useState(false);
+  const [patientNameQuery, setPatientNameQuery] = useState("");
+  const [patientNameSuggestions, setPatientNameSuggestions] = useState([]);
+  const [showPatientNameSuggestions, setShowPatientNameSuggestions] = useState(false);
   const [activePatientField, setActivePatientField] = useState(null); // Track which field is active
   const [doctorQuery, setDoctorQuery] = useState("");
   const [doctorSuggestions, setDoctorSuggestions] = useState([]);
@@ -107,10 +117,13 @@ export default function RadiologyForm() {
       const q = value.trim().toLowerCase();
       setPatientQuery(q);
       setShowPatientSuggestions(!!q);
+      setPatientNameQuery(q);
+      setShowPatientNameSuggestions(!!q);
       setActivePatientField(id); // Track which field is active
       // clear any previously bound internal id when user types a new hospital id
-      if (id === "patientHospitalId")
-        setForm((prev) => ({ ...prev, patientId: "" }));
+      if (id === "patientHospitalId") {
+        setForm((prev) => ({ ...prev, patientId: "", patientVisitId: "" }));
+      }
     }
     setForm((prev) => ({ ...prev, [id]: value }));
   };
@@ -159,6 +172,11 @@ export default function RadiologyForm() {
     if (patientsStatus === "idle") dispatch(fetchPatients());
   }, [dispatch, patientsStatus]);
 
+  // Load active patient visits for suggestions
+  useEffect(() => {
+    if (activePatientVisitsStatus === "idle") dispatch(fetchActivePatientVisits());
+  }, [dispatch, activePatientVisitsStatus]);
+
   // Update patient suggestions when query or patients change
   useEffect(() => {
     if (!patientQuery) return setPatientSuggestions([]);
@@ -182,6 +200,30 @@ export default function RadiologyForm() {
       .slice(0, 10);
     setPatientSuggestions(matches);
   }, [patientQuery, patients]);
+
+  // Update patient name suggestions from activePatientVisits
+  useEffect(() => {
+    if (!patientNameQuery) return setPatientNameSuggestions([]);
+    const q = patientNameQuery.toLowerCase();
+    const matches = (activePatientVisits || [])
+      .map((p) => ({
+        raw: p,
+        patientVisitId: p.patientVisitId || "",
+        patientName: p.patientName || "",
+        gender: p.gender || "",
+        age: p.age || "",
+        hospitalPatientId: p.hospitalPatientId || "",
+        doctorName: p.doctorName || "",
+        contactNumber: p.contactNumber || "",
+        email: p.email || "",
+      }))
+      .filter(
+        (p) =>
+          (p.patientName || "").toLowerCase().includes(q)
+      )
+      .slice(0, 10);
+    setPatientNameSuggestions(matches);
+  }, [patientNameQuery, activePatientVisits]);
 
   // Update doctor suggestions when query or doctor list changes
   const doctorNameIds = useSelector(selectDoctorNameIds) || [];
@@ -310,37 +352,58 @@ export default function RadiologyForm() {
 
   const handleSelectPatient = (p) => {
     const raw = p.raw || p;
-    const name =
-      raw.name || `${raw.firstName || ""} ${raw.lastName || ""}`.trim();
-    const hospId =
-      raw.patient_hospital_id ||
-      raw.hospitalId ||
-      raw.hospitalID ||
-      raw.code ||
-      "";
-    // age
-    let ageVal = raw.age || raw.ageYears;
-    if (!ageVal && raw.dob) {
-      const bd = new Date(raw.dob);
-      if (!isNaN(bd.getTime())) {
-        const diff = Date.now() - bd.getTime();
-        ageVal = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-      }
-    }
-    let genderVal = (raw.gender && String(raw.gender)) || "";
-    if (genderVal) {
-      const g = genderVal.toLowerCase();
+    
+    // Check if this is from activePatientVisits (has patientVisitId) or patients list
+    const isActiveVisit = raw.patientVisitId || raw.patientName;
+    
+    let name, hospId, ageVal, genderVal, contactVal, emailVal, patientVisitId, doctorNameVal;
+    
+    if (isActiveVisit) {
+      // Handle activePatientVisits format
+      patientVisitId = raw.patientVisitId || "";
+      hospId = raw.hospitalPatientId || raw.patientHospitalId || "";
+      name = raw.patientName || "";
+      ageVal = raw.age;
+      doctorNameVal = raw.doctorName || "";
+      
+      // normalize gender
+      let g = (raw.gender || "").toLowerCase();
       if (g.startsWith("m")) genderVal = "Male";
       else if (g.startsWith("f")) genderVal = "Female";
-      else genderVal = "Other";
+      else genderVal = raw.gender || "";
+      
+      contactVal = raw.contactNumber || raw.contact || "";
+      emailVal = raw.email || "";
+    } else {
+      // Handle patients list format
+      name = raw.name || `${raw.firstName || ""} ${raw.lastName || ""}`.trim();
+      hospId = raw.patient_hospital_id || raw.hospitalId || raw.hospitalID || raw.code || "";
+      
+      // age
+      ageVal = raw.age || raw.ageYears;
+      if (!ageVal && raw.dob) {
+        const bd = new Date(raw.dob);
+        if (!isNaN(bd.getTime())) {
+          const diff = Date.now() - bd.getTime();
+          ageVal = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+        }
+      }
+      
+      let g = (raw.gender && String(raw.gender)) || "";
+      if (g) {
+        g = g.toLowerCase();
+        if (g.startsWith("m")) genderVal = "Male";
+        else if (g.startsWith("f")) genderVal = "Female";
+        else genderVal = "Other";
+      } else {
+        genderVal = "";
+      }
+      
+      contactVal = raw.contactInfo || raw.contactNumber || raw.mobile || raw.phone || raw.contact || "";
+      emailVal = raw.email || raw.contactEmail || raw.emailAddress || "";
+      patientVisitId = "";
+      doctorNameVal = "";
     }
-    const contactVal =
-      raw.contactInfo ||
-      raw.contactNumber ||
-      raw.mobile ||
-      raw.phone ||
-      raw.contact ||
-      "";
 
     setForm((prev) => ({
       ...prev,
@@ -348,12 +411,18 @@ export default function RadiologyForm() {
       age: ageVal || prev.age,
       gender: genderVal || prev.gender,
       contact: contactVal || prev.contact,
+      email: emailVal || prev.email,
+      doctorName: doctorNameVal || prev.doctorName,
       patientId: raw.id || raw._id || prev.patientId,
+      patientVisitId: patientVisitId || prev.patientVisitId,
       patientHospitalId: hospId || prev.patientHospitalId,
     }));
     setShowPatientSuggestions(false);
     setPatientSuggestions([]);
     setPatientQuery("");
+    setShowPatientNameSuggestions(false);
+    setPatientNameSuggestions([]);
+    setPatientNameQuery("");
   };
 
   const saveData = async () => {
@@ -368,10 +437,26 @@ export default function RadiologyForm() {
     }
     // resolve IDs from typed names if user didn't pick suggestion
     let patientId = Number(form.patientId);
+    let patientVisitId = Number(form.patientVisitId);
     let doctorId = form.doctorId ? Number(form.doctorId) : NaN;
     let radiologyPerformedById = form.radiologyPerformedById
       ? Number(form.radiologyPerformedById)
       : NaN;
+
+    // if patientVisitId missing but patientId present, use patientId as fallback
+    if (Number.isNaN(patientVisitId) && !Number.isNaN(patientId)) {
+      patientVisitId = patientId;
+    }
+
+    // if patientVisitId missing, try to find from activePatientVisits by hospital ID
+    if (Number.isNaN(patientVisitId) && form.patientHospitalId) {
+      const found = (activePatientVisits || []).find(p => 
+        String(p.hospitalPatientId || "").toLowerCase() === String(form.patientHospitalId).toLowerCase()
+      );
+      if (found && found.patientVisitId) {
+        patientVisitId = Number(found.patientVisitId);
+      }
+    }
 
     // if doctorId missing but doctorName present, try to resolve from doctorNameIds
     if (Number.isNaN(doctorId) && form.doctorName) {
@@ -403,7 +488,7 @@ export default function RadiologyForm() {
     }
 
     if (
-      Number.isNaN(patientId) ||
+      (Number.isNaN(patientVisitId) && Number.isNaN(patientId)) ||
       Number.isNaN(doctorId) ||
       Number.isNaN(radiologyPerformedById)
     ) {
@@ -416,8 +501,9 @@ export default function RadiologyForm() {
     }
 
     const reportPayload = {
-      patientId: patientId,
+      patientVisitId: Number(form.patientVisitId) || patientId,
       doctorId: doctorId,
+      doctorName: form.doctorName || null,
       radiologyPerformedById: radiologyPerformedById,
       // include reportDate so backend stores the selected date
       reportDate: form.reportDate || "",
@@ -524,19 +610,19 @@ export default function RadiologyForm() {
                   autoComplete="off"
                   required
                 />
-                {showPatientSuggestions && patientSuggestions.length > 0 && activePatientField === 'patientName' && (
+                {showPatientNameSuggestions && patientNameSuggestions.length > 0 && (
                   <div
                     className="list-group position-absolute"
                     style={{ zIndex: 999, width: '100%' }}
                   >
-                    {patientSuggestions.map((ps, idx) => (
+                    {patientNameSuggestions.map((ps, idx) => (
                       <button
                         key={idx}
                         type="button"
                         className="list-group-item list-group-item-action"
                         onClick={() => handleSelectPatient(ps)}
                       >
-                        <strong>{ps.name}</strong> — {ps.raw?.patient_hospital_id || ps.id || "-"}
+                        <strong>{ps.patientName}</strong> — {ps.raw?.hospitalPatientId || ps.hospitalPatientId || "-"}
                       </button>
                     ))}
                   </div>
@@ -612,7 +698,7 @@ export default function RadiologyForm() {
                 )}
               </div>
               <div className="col-md-3" style={{ position: "relative" }}>
-                <label>Doctor ID *</label>
+                <label>Doctor Name *</label>
                 <input
                   id="doctorName"
                   className="form-control"
@@ -775,16 +861,12 @@ export default function RadiologyForm() {
                   </div>
                   <div className="col-md-6">
                     <label>Status *</label>
-                    <select
-                      id="status"
-                      className="form-select"
-                      value={form.status}
-                      onChange={handleFormChange}
-                      required
-                    >
-                      <option value="COMPLETED">Completed</option>
-                      <option value="CANCELLED">Cancelled</option>
-                    </select>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value="Completed"
+                      disabled
+                    />
                   </div>
                 </div>
               </div>

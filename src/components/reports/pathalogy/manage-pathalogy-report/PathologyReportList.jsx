@@ -306,7 +306,7 @@ export default function PathologyReportList() {
                     <td>
                       <select
                         className="form-select form-select-sm"
-                        value={r.reportStatus || "COMPLETED"}
+                        value={r.reportStatus }
                         onChange={(e) => handleStatusChange(r.id, e.target.value)}
                       >
                         <option value="COMPLETED">Completed</option>
@@ -329,7 +329,17 @@ export default function PathologyReportList() {
                         <button
                           className="btn1 bg-warning me-1"
                           data-tooltip="Edit"
-                          onClick={() => navigate(`/dashboard/edit-pathology-report/${r.id}`)}
+                          onClick={() => {
+                            if (r.reportStatus === "DELIVERED") {
+                              Swal.fire({
+                                icon: "warning",
+                                title: "Cannot Update",
+                                text: "Once Delivered Report Cannot be Updated",
+                              });
+                              return;
+                            }
+                            navigate(`/dashboard/edit-pathology-report/${r.id}`);
+                          }}
                         >
                           <i className="bi bi-pencil"></i>
                         </button>
